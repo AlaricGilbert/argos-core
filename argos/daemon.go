@@ -7,9 +7,9 @@ import (
 
 // TransactionNotify represents an abstract transaction which has been
 type TransactionNotify struct {
-	// SourceIP is the source where the client get notified
+	// SourceIP is the source where the daemon get notified
 	SourceIP net.IP
-	// Timestamp is the time when the client get notified
+	// Timestamp is the time when the daemon get notified
 	Timestamp time.Time
 	// TxID is the re-hashed abstract representation of an abstract transaction, which can be computed by real
 	// implementation-related cryptocurrency transaction ids
@@ -18,13 +18,13 @@ type TransactionNotify struct {
 
 type TransactionHandler func(tx TransactionNotify) error
 
-// Client is an interface that describes the behaviour of an abstract cryptocurrency client in argos system
-type Client interface {
-	// Spin tries to connect the specified server and start spinning up the client packet handler.
+// Daemon is an interface that describes the behaviour of an abstract cryptocurrency daemon in argos system
+type Daemon interface {
+	// Spin tries to connect the specified server and start spinning up the daemon packet handler.
 	// It will never return until an error occurred.
 	Spin() error
-	// Halt will immediately stop the client handle procedure
+	// Halt will immediately stop the daemon handle procedure
 	Halt() error
-	// OnTransactionReceived make the client calls the given handler every time the client received a tx packet
+	// OnTransactionReceived make the daemon calls the given handler every time the daemon received a tx packet
 	OnTransactionReceived(handler TransactionHandler)
 }

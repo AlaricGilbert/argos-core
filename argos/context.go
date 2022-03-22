@@ -4,16 +4,16 @@ import (
 	"net"
 )
 
-type ClientConstructor func(ctx *Context, addr net.Addr) Client
+type DaemonConstructor func(ctx *Context, addr net.Addr) Daemon
 type SeedProvider func() ([]net.IP, error)
 
 // Context contains
 type Context struct {
-	constructors  map[string]ClientConstructor
+	constructors  map[string]DaemonConstructor
 	seedProviders map[string]SeedProvider
 }
 
-func (c *Context) RegisterClientConstructor(name string, constructor ClientConstructor) {
+func (c *Context) RegisterDaemonConstructor(name string, constructor DaemonConstructor) {
 	c.constructors[name] = constructor
 }
 
@@ -21,7 +21,7 @@ func (c *Context) RegisterSeedProvider(name string, provider SeedProvider) {
 	c.seedProviders[name] = provider
 }
 
-func (c *Context) NewClient(network string, addr net.Addr) (Client, error) {
+func (c *Context) NewDaemon(network string, addr net.Addr) (Daemon, error) {
 	if ctor, ok := c.constructors[network]; ok {
 		return ctor(c, addr), nil
 	}
@@ -37,7 +37,7 @@ func (c *Context) GetSeedNodes(network string) ([]net.IP, error) {
 
 func NewContext() *Context {
 	return &Context{
-		constructors:  make(map[string]ClientConstructor),
+		constructors:  make(map[string]DaemonConstructor),
 		seedProviders: make(map[string]SeedProvider),
 	}
 }

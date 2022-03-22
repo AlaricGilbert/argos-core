@@ -58,17 +58,17 @@ func TestDeserializeVersion(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	c := NewClient(nil, nil).(*Client)
-	c.Mock(buf)
+	d := NewDaemon(nil, nil).(*Daemon)
+	d.Mock(buf)
 
-	header, err = c.header()
+	header, err = d.header()
 	assert.Nil(t, err, "while reading header")
 	assert.NotNil(t, header)
 
 	assert.Equal(t, uint32(101), header.Length)
 	assert.Equal(t, "version", SliceToString(header.Command[:]))
 
-	payload, err = c.payload(header)
+	payload, err = d.payload(header)
 	assert.Nil(t, err)
 	assert.NotNil(t, payload)
 
@@ -147,17 +147,17 @@ func TestDeserializeAddr(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	c := NewClient(nil, nil).(*Client)
-	c.Mock(buf)
+	d := NewDaemon(nil, nil).(*Daemon)
+	d.Mock(buf)
 
-	header, err = c.header()
+	header, err = d.header()
 	assert.Nil(t, err, "while reading header")
 	assert.NotNil(t, header)
 
 	assert.Equal(t, uint32(31), header.Length)
 	assert.Equal(t, "addr", SliceToString(header.Command[:]))
 
-	payload, err = c.payload(header)
+	payload, err = d.payload(header)
 	assert.Nil(t, err)
 	assert.NotNil(t, payload)
 
@@ -290,17 +290,17 @@ func TestDeserializeTx(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	c := NewClient(nil, nil).(*Client)
-	c.Mock(buf)
+	d := NewDaemon(nil, nil).(*Daemon)
+	d.Mock(buf)
 
-	header, err = c.header()
+	header, err = d.header()
 	assert.Nil(t, err, "while reading header")
 	assert.NotNil(t, header)
 
 	assert.Equal(t, uint32(258), header.Length)
 	assert.Equal(t, "tx", SliceToString(header.Command[:]))
 
-	payload, err = c.payload(header)
+	payload, err = d.payload(header)
 	assert.Nil(t, err)
 	assert.NotNil(t, payload)
 

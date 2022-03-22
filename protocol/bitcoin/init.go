@@ -15,7 +15,7 @@ func initOnce() {
 
 func Init(ctx *argos.Context) error {
 	once.Do(initOnce)
-	ctx.RegisterClientConstructor("bitcoin", NewClient)
+	ctx.RegisterDaemonConstructor("bitcoin", NewDaemon)
 	ctx.RegisterSeedProvider("bitcoin", LookupBTCNetwork)
 	return nil
 }

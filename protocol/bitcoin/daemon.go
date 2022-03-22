@@ -6,11 +6,10 @@ import (
 
 	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/argos/serialization"
-	"github.com/AlaricGilbert/argos-core/protocol"
 	"github.com/cloudwego/netpoll"
 )
 
-type Client struct {
+type Daemon struct {
 	ctx        *argos.Context
 	addr       net.Addr
 	tcpAddr    *netpoll.TCPAddr
@@ -20,32 +19,32 @@ type Client struct {
 	mockReader netpoll.Reader
 }
 
-func (c *Client) Spin() error {
+func (d *Daemon) Spin() error {
 	var err error
 
-	defer c.conn.Close()
+	defer d.conn.Close()
 
-	if c.tcpAddr, err = netpoll.ResolveTCPAddr(c.addr.Network(), c.addr.String()); err != nil {
+	if d.tcpAddr, err = netpoll.ResolveTCPAddr(d.addr.Network(), d.addr.String()); err != nil {
 		return err
 	}
-	if c.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, c.tcpAddr); err != nil {
+	if d.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, d.tcpAddr); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *Client) reader() netpoll.Reader {
-	if c.mockReader != nil {
-		return c.mockReader
+func (d *Daemon) reader() netpoll.Reader {
+	if d.mockReader != nil {
+		return d.mockReader
 	}
-	return c.conn.Reader()
+	return d.conn.Reader()
 }
 
-func (c *Client) header() (*MessageHeader, error) {
-	defer c.reader().Release()
+func (d *Daemon) header() (*MessageHeader, error) {
+	defer d.reader().Release()
 
-	if c.mock || c.conn.IsActive() {
+	if d.mock || d.conn.IsActive() {
 		// an easy handwritten state machine to detect magic code
 
 		// there are five possible arrangements of magic code:
@@ -95,7 +94,7 @@ func (c *Client) header() (*MessageHeader, error) {
 
 		for !parsed {
 			// tries to Read a byte from connection and returns error when it fails
-			if b, err = c.reader().ReadByte(); err != nil {
+			if b, err = d.reader().ReadByte(); err != nil {
 				return nil, err
 			}
 
@@ -128,22 +127,22 @@ func (c *Client) header() (*MessageHeader, error) {
 
 		var header MessageHeader
 		header.Magic = magic
-		if _, err = serialization.Deserialize(c.reader(), &header.Command); err != nil {
+		if _, err = serialization.Deserialize(d.reader(), &header.Command); err != nil {
 			return nil, err
 		}
-		if _, err = serialization.Deserialize(c.reader(), &header.Length); err != nil {
+		if _, err = serialization.Deserialize(d.reader(), &header.Length); err != nil {
 			return nil, err
 		}
-		if _, err = serialization.Deserialize(c.reader(), &header.Checksum); err != nil {
+		if _, err = serialization.Deserialize(d.reader(), &header.Checksum); err != nil {
 			return nil, err
 		}
 
 		return &header, nil
 	}
-	return nil, protocol.ClientNotRunningError
+	return nil, argos.DaemonNotRunningError
 }
 
-func (c *Client) payload(header *MessageHeader) (any, error) {
+func (d *Daemon) payload(header *MessageHeader) (any, error) {
 	if header == nil || header.Length == 0 {
 		return nil, nil
 	}
@@ -153,7 +152,7 @@ func (c *Client) payload(header *MessageHeader) (any, error) {
 	var err error
 	var n int
 	// prefetch buffer
-	buf, err = c.reader().Slice(int(header.Length))
+	buf, err = d.reader().Slice(int(header.Length))
 	if err != nil {
 		return nil, err
 	}
@@ -194,25 +193,25 @@ func (c *Client) payload(header *MessageHeader) (any, error) {
 	return payload, nil
 }
 
-func (c *Client) Halt() error {
-	if c.conn == nil || !c.conn.IsActive() {
-		return protocol.ClientNotRunningError
+func (d *Daemon) Halt() error {
+	if d.conn == nil || !d.conn.IsActive() {
+		return argos.DaemonNotRunningError
 	}
-	return c.conn.Close()
+	return d.conn.Close()
 }
 
-func (c *Client) OnTransactionReceived(handler argos.TransactionHandler) {
-	c.txHandler = handler
+func (d *Daemon) OnTransactionReceived(handler argos.TransactionHandler) {
+	d.txHandler = handler
 }
 
-func NewClient(ctx *argos.Context, addr net.Addr) argos.Client {
-	return &Client{
+func NewDaemon(ctx *argos.Context, addr net.Addr) argos.Daemon {
+	return &Daemon{
 		ctx:  ctx,
 		addr: addr,
 	}
 }
 
-func (c *Client) Mock(reader netpoll.Reader) {
-	c.mock = true
-	c.mockReader = reader
+func (d *Daemon) Mock(reader netpoll.Reader) {
+	d.mock = true
+	d.mockReader = reader
 }
