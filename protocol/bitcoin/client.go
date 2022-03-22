@@ -140,7 +140,7 @@ func (c *Client) header() (*MessageHeader, error) {
 
 		return &header, nil
 	}
-	return nil, protocol.NotRunning
+	return nil, protocol.ClientNotRunningError
 }
 
 func (c *Client) payload(header *MessageHeader) (any, error) {
@@ -196,7 +196,7 @@ func (c *Client) payload(header *MessageHeader) (any, error) {
 
 func (c *Client) Halt() error {
 	if c.conn == nil || !c.conn.IsActive() {
-		return protocol.NotRunning
+		return protocol.ClientNotRunningError
 	}
 	return c.conn.Close()
 }

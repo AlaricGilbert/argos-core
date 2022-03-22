@@ -159,7 +159,7 @@ func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (
 
 			if Omit(fieldTyp) {
 				if i != l-1 {
-					return bytes, NonLastFieldContainsOmitOption
+					return bytes, NonLastFieldContainsOmitOptionError
 				}
 				if r.Len() == 0 {
 					return bytes, nil

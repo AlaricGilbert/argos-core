@@ -180,7 +180,7 @@ func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (in
 					size := sizeF.Int()
 					if size != int64(field.Len()) {
 						if !sizeF.CanSet() {
-							return bytes, UsingUnaddressableValue
+							return bytes, UsingUnaddressableValueError
 						}
 						sizeF.SetInt(int64(len))
 					}
@@ -188,12 +188,12 @@ func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (in
 					size := sizeF.Uint()
 					if size != uint64(field.Len()) {
 						if !sizeF.CanSet() {
-							return bytes, UsingUnaddressableValue
+							return bytes, UsingUnaddressableValueError
 						}
 						sizeF.SetUint(uint64(len))
 					}
 				} else {
-					return bytes, SliceFiledSizeTagNotFound
+					return bytes, SliceFiledSizeTagNotFoundError
 				}
 			}
 		}

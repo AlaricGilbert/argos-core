@@ -25,14 +25,14 @@ func (c *Context) NewClient(network string, addr net.Addr) (Client, error) {
 	if ctor, ok := c.constructors[network]; ok {
 		return ctor(c, addr), nil
 	}
-	return nil, ProtocolNotImplemented
+	return nil, ProtocolNotImplementedError
 }
 
 func (c *Context) GetSeedNodes(network string) ([]net.IP, error) {
 	if provider, ok := c.seedProviders[network]; ok {
 		return provider()
 	}
-	return nil, ProtocolNotImplemented
+	return nil, ProtocolNotImplementedError
 }
 
 func NewContext() *Context {
