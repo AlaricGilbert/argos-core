@@ -2,7 +2,6 @@ package bitcoin
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/AlaricGilbert/argos-core/argos"
@@ -13,11 +12,10 @@ import (
 
 type Client struct {
 	ctx        *argos.Context
-	ip         net.IP
-	port       int
-	addr       *netpoll.TCPAddr
+	addr       net.Addr
+	tcpAddr    *netpoll.TCPAddr
 	conn       *netpoll.TCPConnection
-	txHandler  protocol.TransactionHandler
+	txHandler  argos.TransactionHandler
 	mock       bool
 	mockReader netpoll.Reader
 }
@@ -27,10 +25,10 @@ func (c *Client) Spin() error {
 
 	defer c.conn.Close()
 
-	if c.addr, err = netpoll.ResolveTCPAddr("tcp", fmt.Sprintf("[%s]:%d", c.ip.String(), c.port)); err != nil {
+	if c.tcpAddr, err = netpoll.ResolveTCPAddr(c.addr.Network(), c.addr.String()); err != nil {
 		return err
 	}
-	if c.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, c.addr); err != nil {
+	if c.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, c.tcpAddr); err != nil {
 		return err
 	}
 
@@ -203,15 +201,14 @@ func (c *Client) Halt() error {
 	return c.conn.Close()
 }
 
-func (c *Client) OnTransactionReceived(handler protocol.TransactionHandler) {
+func (c *Client) OnTransactionReceived(handler argos.TransactionHandler) {
 	c.txHandler = handler
 }
 
-func NewClient(ctx *argos.Context, ip net.IP, port int) protocol.Client {
+func NewClient(ctx *argos.Context, addr net.Addr) argos.Client {
 	return &Client{
 		ctx:  ctx,
-		ip:   ip,
-		port: port,
+		addr: addr,
 	}
 }
 

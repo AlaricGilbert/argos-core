@@ -1,11 +1,10 @@
 package argos
 
 import (
-	"github.com/AlaricGilbert/argos-core/protocol"
 	"net"
 )
 
-type ClientConstructor func(ctx *Context, ip net.IP, port int) protocol.Client
+type ClientConstructor func(ctx *Context, addr net.Addr) Client
 type SeedProvider func() ([]net.IP, error)
 
 // Context contains
@@ -22,9 +21,9 @@ func (c *Context) RegisterSeedProvider(name string, provider SeedProvider) {
 	c.seedProviders[name] = provider
 }
 
-func (c *Context) NewClient(network string, ip net.IP, port int) (protocol.Client, error) {
+func (c *Context) NewClient(network string, addr net.Addr) (Client, error) {
 	if ctor, ok := c.constructors[network]; ok {
-		return ctor(c, ip, port), nil
+		return ctor(c, addr), nil
 	}
 	return nil, ProtocolNotImplemented
 }

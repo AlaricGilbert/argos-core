@@ -66,7 +66,7 @@ func TestDeserializeVersion(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	c := NewClient(nil, nil, 0).(*Client)
+	c := NewClient(nil, nil).(*Client)
 	c.Mock(buf)
 
 	header, err = c.header()
@@ -138,7 +138,7 @@ func TestDeserializeAddr(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	c := NewClient(nil, nil, 0).(*Client)
+	c := NewClient(nil, nil).(*Client)
 	c.Mock(buf)
 
 	header, err = c.header()
@@ -264,7 +264,7 @@ func TestDeserializeTx(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	c := NewClient(nil, nil, 0).(*Client)
+	c := NewClient(nil, nil).(*Client)
 	c.Mock(buf)
 
 	header, err = c.header()
