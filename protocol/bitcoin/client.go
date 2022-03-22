@@ -127,14 +127,14 @@ func (c *Client) header() (*MessageHeader, error) {
 		}
 
 		var header MessageHeader
-		header.magic = magic
-		if _, err = serialization.Deserialize(c.reader(), &header.command); err != nil {
+		header.Magic = magic
+		if _, err = serialization.Deserialize(c.reader(), &header.Command); err != nil {
 			return nil, err
 		}
-		if _, err = serialization.Deserialize(c.reader(), &header.length); err != nil {
+		if _, err = serialization.Deserialize(c.reader(), &header.Length); err != nil {
 			return nil, err
 		}
-		if _, err = serialization.Deserialize(c.reader(), &header.checksum); err != nil {
+		if _, err = serialization.Deserialize(c.reader(), &header.Checksum); err != nil {
 			return nil, err
 		}
 
@@ -144,7 +144,7 @@ func (c *Client) header() (*MessageHeader, error) {
 }
 
 func (c *Client) payload(header *MessageHeader) (any, error) {
-	if header == nil || header.length == 0 {
+	if header == nil || header.Length == 0 {
 		return nil, nil
 	}
 
@@ -153,12 +153,12 @@ func (c *Client) payload(header *MessageHeader) (any, error) {
 	var err error
 	var n int
 	// prefetch buffer
-	buf, err = c.reader().Slice(int(header.length))
+	buf, err = c.reader().Slice(int(header.Length))
 	if err != nil {
 		return nil, err
 	}
 
-	switch string(SliceToString(header.command[:])) {
+	switch string(SliceToString(header.Command[:])) {
 	case "version":
 		payload = &Version{}
 	case "addr":
@@ -187,7 +187,7 @@ func (c *Client) payload(header *MessageHeader) (any, error) {
 		return nil, nil
 	}
 	n, err = serialization.Deserialize(buf, payload)
-	if err != nil || n != int(header.length) {
+	if err != nil || n != int(header.Length) {
 		return nil, err
 	}
 

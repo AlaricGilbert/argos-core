@@ -6,10 +6,10 @@ import (
 )
 
 type MessageHeader struct {
-	magic    NetworkMagic // Magic value indicating message origin network, and used to seek to next message when stream state is unknown
-	command  [12]byte     // ASCII string identifying the packet content, NULL padded (non-NULL padding results in packet rejected)
-	length   uint32       // Length of payload in number of bytes
-	checksum uint32       // First 4 bytes of sha256(sha256(payload))
+	Magic    NetworkMagic // Magic value indicating message origin network, and used to seek to next message when stream state is unknown
+	Command  [12]byte     // ASCII string identifying the packet content, NULL padded (non-NULL padding results in packet rejected)
+	Length   uint32       // Length of payload in number of bytes
+	Checksum uint32       // First 4 bytes of sha256(sha256(payload))
 }
 
 // NetworkAddress is used when a network address is needed somewhere

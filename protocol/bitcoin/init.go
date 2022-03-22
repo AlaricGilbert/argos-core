@@ -10,7 +10,7 @@ import (
 var once sync.Once
 
 func initOnce() {
-	serialization.RegisterDeserializer(deserialize)
+	serialization.RegisterSerializer("bitcoin", &BitcoinSerializer{})
 }
 
 func Init(ctx *argos.Context) error {

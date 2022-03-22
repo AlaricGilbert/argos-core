@@ -10,52 +10,18 @@ import (
 	"github.com/cloudwego/netpoll"
 )
 
-// intDataSize returns the size of the data required to represent the data when encoded.
-// It returns zero if the type cannot be implemented by the fast path in Read or Write.
-func intDataSize(data any) int {
-	switch data := data.(type) {
-	case bool, int8, uint8, *bool, *int8, *uint8:
-		return 1
-	case []bool:
-		return len(data)
-	case []int8:
-		return len(data)
-	case []uint8:
-		return len(data)
-	case int16, uint16, *int16, *uint16:
-		return 2
-	case []int16:
-		return 2 * len(data)
-	case []uint16:
-		return 2 * len(data)
-	case int32, uint32, *int32, *uint32:
-		return 4
-	case []int32:
-		return 4 * len(data)
-	case []uint32:
-		return 4 * len(data)
-	case int64, uint64, *int64, *uint64:
-		return 8
-	case []int64:
-		return 8 * len(data)
-	case []uint64:
-		return 8 * len(data)
-	case float32, *float32:
-		return 4
-	case float64, *float64:
-		return 8
-	case []float32:
-		return 4 * len(data)
-	case []float64:
-		return 8 * len(data)
-	}
-	return 0
-}
-
+// Deserialize using builtin basic type memory binary representations and little endian order
+// to deserialize the given binary reading stream into given `data` object pointer.
+// It should be noticed the `data` must be a pointer because value pass will cause unaddressable
+// panic
 func Deserialize(r netpoll.Reader, data any) (int, error) {
 	return DeserializeWithEndian(r, data, binary.LittleEndian)
 }
 
+// DeserializeWithEndian using builtin basic type memory binary representations and given `order`
+// to deserialize the given binary reading stream into given `data` object pointer.
+// It should be noticed the `data` must be a pointer because value pass will cause unaddressable
+// panic
 func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (int, error) {
 	// bytes read
 	var bs []byte
@@ -145,8 +111,8 @@ func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (
 	}
 
 	// fall into customized type deserialize
-	for _, d := range deserializers {
-		if n, err = d(r, data, order); err != DeserializeTypeDismatchError {
+	for _, s := range serializers {
+		if n, err = s.Deserialize(r, data, order); err != SerializeTypeDismatchError {
 			return bytes + n, err
 		}
 		bytes += n
@@ -172,17 +138,23 @@ func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (
 	case reflect.Struct:
 		l := v.NumField()
 		typ := v.Type()
-		var size int64
+		var size int
 		for i := 0; i < l; i++ {
 			fieldTyp := typ.Field(i)
 			fieldValue := v.Field(i)
 			order := Order(fieldTyp)
 			if v.Field(i).Kind() == reflect.Slice {
-				size, err = findSizeForSlice(fieldTyp, v)
-				if err != nil {
-					return bytes, SliceFiledSizeTagNotFound
+
+				if sizeF, err := findSizeForSlice(fieldTyp, v); err != nil {
+					return bytes, err
+				} else {
+					if sizeF.CanInt() {
+						size = int(sizeF.Int())
+					} else if sizeF.CanUint() {
+						size = int(sizeF.Uint())
+					}
 				}
-				fieldValue.Set(reflect.MakeSlice(fieldTyp.Type, int(size), int(size)))
+				fieldValue.Set(reflect.MakeSlice(fieldTyp.Type, size, size))
 			}
 
 			if Omit(fieldTyp) {
