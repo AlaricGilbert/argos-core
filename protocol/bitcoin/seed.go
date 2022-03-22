@@ -3,8 +3,9 @@ package bitcoin
 import (
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
+
+	"github.com/sirupsen/logrus"
 )
 
 // The DNS host from https://github.com/bitcoin/bitcoin core repository
