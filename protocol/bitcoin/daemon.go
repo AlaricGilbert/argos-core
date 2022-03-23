@@ -205,6 +205,7 @@ func (d *Daemon) header() (*MessageHeader, error) {
 
 func (d *Daemon) handle() error {
 	defer d.reader().Release()
+	defer d.writer().Flush()
 	var rejectData [32]byte
 
 	h, err := d.header()
@@ -220,25 +221,26 @@ func (d *Daemon) handle() error {
 		return d.sendReject(command, REJECT_INVALID, "message too long", rejectData)
 	}
 
-	payload, err := d.reader().ReadBinary(int(h.Length))
+	slice, err := d.reader().Slice(int(h.Length))
+	if err != nil {
+		return err
+	}
+
+	payload, _ := slice.ReadBinary(int(h.Length))
 	if checksum(payload) != h.Checksum {
 		return d.sendReject(command, REJECT_INVALID, "message checksum invalid", rejectData)
 	}
-
-	buf := netpoll.NewLinkBuffer()
-	_, _ = buf.WriteBinary(payload)
-	_ = buf.Flush()
 
 	switch command {
 	case CommandReject, CommandVerack:
 		// DO nothing
 	case CommandVersion:
-		return d.handleVersion(buf)
+		return d.handleVersion(d.reader())
 	default:
 		d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
 	}
 
-	return buf.Close()
+	return nil
 }
 
 func (d *Daemon) handleVersion(reader netpoll.Reader) error {
