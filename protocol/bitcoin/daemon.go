@@ -2,6 +2,7 @@ package bitcoin
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/argos/serialization"
 	"github.com/cloudwego/netpoll"
+	"github.com/sirupsen/logrus"
 )
 
 type Daemon struct {
@@ -22,10 +24,23 @@ type Daemon struct {
 	nonce      uint64
 }
 
+func (d *Daemon) logger() *logrus.Entry {
+	return logrus.WithFields(logrus.Fields{
+		"address": d.addr,
+		"nonce":   fmt.Sprintf("0x%x", d.nonce),
+	})
+}
+
 func (d *Daemon) send(command string, data any) error {
+	var err error
+	defer func() {
+		if err != nil {
+			d.logger().WithField("error", err).Warn("bitcoin daemon sending message failed")
+		}
+	}()
 	buf := netpoll.NewLinkBuffer()
 
-	if _, err := serialization.Serialize(buf, data); err != nil {
+	if _, err = serialization.Serialize(buf, data); err != nil {
 		return err
 	}
 
@@ -46,17 +61,23 @@ func (d *Daemon) send(command string, data any) error {
 		Checksum: checksum(msg),
 	}
 
+	d.logger().WithFields(logrus.Fields{
+		"command": command,
+		"header":  header,
+		"message": data,
+	}).Info("bitcoin daemon sending message")
+
 	w := d.writer()
 
-	if _, err := serialization.Serialize(w, header); err != nil {
+	if _, err = serialization.Serialize(w, header); err != nil {
 		return err
 	}
 
-	if _, err := w.WriteBinary(msg); err != nil {
+	if _, err = w.WriteBinary(msg); err != nil {
 		return err
 	}
 
-	if err := w.Flush(); err != nil {
+	if err = w.Flush(); err != nil {
 		return err
 	}
 
@@ -252,12 +273,17 @@ func (d *Daemon) handleVersion(reader netpoll.Reader) error {
 func (d *Daemon) Spin() error {
 	var err error
 
-	defer d.conn.Close()
+	defer func() {
+		d.conn.Close()
+		d.logger().Info("daemon spin exited")
+	}()
 
+	d.logger().Info("daemon spinning")
 	if !d.mock {
 		d.nonce = rand.Uint64()
 
 		if d.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, d.addr); err != nil {
+			d.logger().WithField("error", err).Error("daemon connect failed")
 			return err
 		}
 	}
@@ -276,6 +302,7 @@ func (d *Daemon) Spin() error {
 }
 
 func (d *Daemon) Halt() error {
+	d.logger().Info("daemon spin halting")
 	if d.conn == nil || !d.conn.IsActive() {
 		return argos.DaemonNotRunningError
 	}
@@ -299,4 +326,6 @@ func (d *Daemon) Mock(reader netpoll.Reader, writer netpoll.Writer) {
 	d.mock = true
 	d.mockReader = reader
 	d.mockWriter = writer
+
+	d.logger().Info("bitcoin daemon mocked")
 }

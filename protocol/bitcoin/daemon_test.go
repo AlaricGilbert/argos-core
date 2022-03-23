@@ -15,7 +15,8 @@ func TestDaemonLocal(t *testing.T) {
 
 	addr, _ := netpoll.ResolveTCPAddr("tcp", localAddr)
 	daemon := &Daemon{
-		addr: addr,
+		addr:  addr,
+		nonce: 0xdeadbeaf,
 	}
 
 	input := netpoll.NewLinkBuffer()
@@ -35,9 +36,7 @@ func TestDaemonLocal(t *testing.T) {
 	input.WriteBinary(data)
 	input.Flush()
 
-	daemon.nonce = 0xdeadbeaf
 	daemon.handle()
-
 	output.Flush()
 
 	var ver Version

@@ -39,6 +39,7 @@ var magicNames = map[NetworkMagic]string{
 }
 
 const (
+	MSG_VALIDATION_MASK InventoryType = 0b10111111111111111111111111111100
 	// MSG_WITNESS_FLAG is NOT a valid InventoryType value but a FLAG to
 	MSG_WITNESS_FLAG InventoryType = 1 << 30
 	// MSG_TX means hash is related to a transaction
@@ -50,7 +51,7 @@ const (
 	// MSG_CMPCT_BLOCK means hash of a block header; identical to MSG_BLOCK. Only to be used in getdata message. Indicates the reply should be a cmpctblock message. See BIP 152 for more info.
 	MSG_CMPCT_BLOCK InventoryType = 4
 	// MSG_WITNESS_TX means hash of a transaction with witness data. See BIP 144 for more info.
-	MSG_WITNESS_TX InventoryType = MSG_TX | MSG_WITNESS_BLOCK
+	MSG_WITNESS_TX InventoryType = MSG_TX | MSG_WITNESS_FLAG
 	// MSG_WITNESS_BLOCK means hash of a block with witness data. See BIP 144 for more info.
 	MSG_WITNESS_BLOCK InventoryType = MSG_BLOCK | MSG_WITNESS_FLAG
 	// MSG_WITNESS_FILTERED_BLOCK means hash of a block with witness data. Only to be used in getdata message. Indicates the reply should be a merkleblock message rather than a block message; this only works if a bloom filter has been set. See BIP 144 for more info.

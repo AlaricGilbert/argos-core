@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"strings"
 )
 
 // hash returns the hash result of sha256(sha256(data))
@@ -36,4 +37,18 @@ func SliceToString(data []byte) string {
 		data = data[:n]
 	}
 	return string(data)
+}
+
+func FmtSlice[T any](slice []T, dataFmt func(T) string) string {
+	builder := strings.Builder{}
+	builder.WriteRune('[')
+	length := len(slice)
+	for i := 0; i < length; i++ {
+		builder.WriteString(dataFmt(slice[i]))
+		if i+1 != length {
+			builder.WriteString(", ")
+		}
+	}
+	builder.WriteRune(']')
+	return builder.String()
 }
