@@ -12,7 +12,7 @@ func TestDeserializeVersion(t *testing.T) {
 	initOnce()
 	var data = []byte{
 		0xf9, 0xbe, 0xb4, 0xd9, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x65, 0x00, 0x00, 0x00, 0x35, 0x8d, 0x49, 0x32, 0x62, 0xea, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		0x65, 0x00, 0x00, 0x00, 0xc5, 0xd9, 0x95, 0xec, 0x62, 0xea, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x11, 0xb2, 0xd0, 0x50, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -22,7 +22,7 @@ func TestDeserializeVersion(t *testing.T) {
 	}
 
 	// 0000   f9 be b4 d9 76 65 72 73 69 6f 6e 00 00 00 00 00  ....version.....
-	// 0010   64 00 00 00 35 8d 49 32 62 ea 00 00 01 00 00 00  d...5.I2b.......
+	// 0010   64 00 00 00 c5 d9 95 ec 62 ea 00 00 01 00 00 00  d...5.I2b.......
 	// 0020   00 00 00 00 11 b2 d0 50 00 00 00 00 01 00 00 00  .......P........
 	// 0030   00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff ff  ................
 	// 0040   00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
@@ -33,8 +33,8 @@ func TestDeserializeVersion(t *testing.T) {
 	// Message Header:
 	//  F9 BE B4 D9                                                                   - Main network magic bytes
 	//  76 65 72 73 69 6F 6E 00 00 00 00 00                                           - "version" command
-	//  64 00 00 00                                                                   - Payload is 100 bytes long
-	//  35 8d 49 32                                                                   - payload checksum (internal byte order)
+	//  65 00 00 00                                                                   - Payload is 101 bytes long
+	//  C5 D9 95 EC                                                                   - payload checksum (internal byte order)
 
 	// Version message:
 	//  62 EA 00 00                                                                   - 60002 (protocol version 60002)
@@ -45,11 +45,9 @@ func TestDeserializeVersion(t *testing.T) {
 	//  3B 2E B3 5D 8C E6 17 65                                                       - Node ID
 	//  0F 2F 53 61 74 6F 73 68 69 3A 30 2E 37 2E 32 2F                               - "/Satoshi:0.7.2/" sub-version string (string is 15 bytes long)
 	//  C0 3E 03 00                                                                   - Last block sending node has is block #212672
-	//  01																			  - Relay enabled
-	var ok bool
-	var ver *Version
-	var header *MessageHeader
-	var payload interface{}
+	//  01																		      - Relay info
+	var ver Version
+	var header MessageHeader
 	var err error
 	var n, bytes int
 	var serialized []byte
@@ -58,23 +56,20 @@ func TestDeserializeVersion(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	d := NewDaemon(nil, nil).(*Daemon)
-	d.Mock(buf)
-
-	header, err = d.header()
-	assert.Nil(t, err, "while reading header")
+	// deserialize test
+	bytes, err = serialization.Deserialize(buf, &header)
+	assert.Nil(t, err)
 	assert.NotNil(t, header)
+	assert.Equal(t, 24, bytes)
 
 	assert.Equal(t, uint32(101), header.Length)
 	assert.Equal(t, "version", SliceToString(header.Command[:]))
+	assert.Equal(t, checksum(data[24:]), header.Checksum)
 
-	payload, err = d.payload(header)
+	n, err = serialization.Deserialize(buf, &ver)
 	assert.Nil(t, err)
-	assert.NotNil(t, payload)
-
-	ver, ok = payload.(*Version)
-	assert.True(t, ok)
 	assert.NotNil(t, ver)
+	assert.Equal(t, 101, n)
 
 	assert.Equal(t, int32(60002), ver.Version)
 	assert.True(t, ver.Services.Serves(NODE_NETWORK))
@@ -91,9 +86,9 @@ func TestDeserializeVersion(t *testing.T) {
 	assert.True(t, ver.Relay)
 
 	// serialize test
-	bytes, err = serialization.Serialize(buf, header)
+	bytes, err = serialization.Serialize(buf, &header)
 	assert.Nil(t, err)
-	n, err = serialization.Serialize(buf, ver)
+	n, err = serialization.Serialize(buf, &ver)
 	assert.Nil(t, err)
 	bytes += n
 	assert.Equal(t, len(data), bytes)
@@ -135,10 +130,8 @@ func TestDeserializeAddr(t *testing.T) {
 	//  01 00 00 00 00 00 00 00                         - 1 (NODE_NETWORK service - see version message)
 	//  00 00 00 00 00 00 00 00 00 00 FF FF 0A 00 00 01 - IPv4: 10.0.0.1, IPv6: ::ffff:10.0.0.1 (IPv4-mapped IPv6 address)
 	//  20 8D                                           - port 8333
-	var header *MessageHeader
-	var addr *Addr
-	var ok bool
-	var payload interface{}
+	var header MessageHeader
+	var addr Addr
 	var err error
 	var bytes, n int
 	var serialized []byte
@@ -147,32 +140,29 @@ func TestDeserializeAddr(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	d := NewDaemon(nil, nil).(*Daemon)
-	d.Mock(buf)
-
-	header, err = d.header()
-	assert.Nil(t, err, "while reading header")
+	// deserialize test
+	bytes, err = serialization.Deserialize(buf, &header)
+	assert.Nil(t, err)
 	assert.NotNil(t, header)
+	assert.Equal(t, 24, bytes)
 
 	assert.Equal(t, uint32(31), header.Length)
 	assert.Equal(t, "addr", SliceToString(header.Command[:]))
+	assert.Equal(t, checksum(data[24:]), header.Checksum)
 
-	payload, err = d.payload(header)
+	n, err = serialization.Deserialize(buf, &addr)
 	assert.Nil(t, err)
-	assert.NotNil(t, payload)
-
-	addr, ok = payload.(*Addr)
-	assert.True(t, ok)
 	assert.NotNil(t, addr)
+	assert.Equal(t, 31, n)
 
 	assert.Equal(t, VarInt(1), addr.Count)
 	assert.Equal(t, uint32(0x4d1015e2), addr.AddrList[0].Time)
 	assert.Equal(t, "10.0.0.1:8333", addr.AddrList[0].TCPAddr().String())
 
 	// serialize test
-	bytes, err = serialization.Serialize(buf, header)
+	bytes, err = serialization.Serialize(buf, &header)
 	assert.Nil(t, err)
-	n, err = serialization.Serialize(buf, addr)
+	n, err = serialization.Serialize(buf, &addr)
 	assert.Nil(t, err)
 	bytes += n
 	assert.Equal(t, len(data), bytes)
@@ -278,10 +268,8 @@ func TestDeserializeTx(t *testing.T) {
 
 	// Locktime:
 	//  00 00 00 00                                       - lock time
-	var header *MessageHeader
-	var tx *Transaction
-	var ok bool
-	var payload interface{}
+	var header MessageHeader
+	var tx Transaction
 	var err error
 	var bytes, n int
 	var serialized []byte
@@ -290,23 +278,20 @@ func TestDeserializeTx(t *testing.T) {
 	_, _ = buf.WriteBinary(data)
 	_ = buf.Flush()
 
-	d := NewDaemon(nil, nil).(*Daemon)
-	d.Mock(buf)
-
-	header, err = d.header()
-	assert.Nil(t, err, "while reading header")
+	// deserialize test
+	bytes, err = serialization.Deserialize(buf, &header)
+	assert.Nil(t, err)
 	assert.NotNil(t, header)
+	assert.Equal(t, 24, bytes)
 
 	assert.Equal(t, uint32(258), header.Length)
 	assert.Equal(t, "tx", SliceToString(header.Command[:]))
+	assert.Equal(t, checksum(data[24:]), header.Checksum)
 
-	payload, err = d.payload(header)
+	n, err = serialization.Deserialize(buf, &tx)
 	assert.Nil(t, err)
-	assert.NotNil(t, payload)
-
-	tx, ok = payload.(*Transaction)
-	assert.True(t, ok)
 	assert.NotNil(t, tx)
+	assert.Equal(t, 258, n)
 
 	assert.Equal(t, uint32(1), tx.Version)
 	assert.Equal(t, [2]uint8{0, 0}, tx.Flag)
@@ -321,9 +306,9 @@ func TestDeserializeTx(t *testing.T) {
 	assert.Equal(t, uint32(0), tx.LockTime)
 
 	// serialize test
-	bytes, err = serialization.Serialize(buf, header)
+	bytes, err = serialization.Serialize(buf, &header)
 	assert.Nil(t, err)
-	n, err = serialization.Serialize(buf, tx)
+	n, err = serialization.Serialize(buf, &tx)
 	assert.Nil(t, err)
 	bytes += n
 	assert.Equal(t, len(data), bytes)

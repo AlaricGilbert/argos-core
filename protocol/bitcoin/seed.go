@@ -3,7 +3,9 @@ package bitcoin
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -24,6 +26,8 @@ var btcSeedHosts = []string{
 	"seed.bitcoin.wiz.biz.",          // Jason Maurice
 }
 
+var seedRng = rand.New((rand.NewSource(time.Now().Unix())))
+
 // LookupBTCNetwork queries all the possible connected DNS servers and returns the core BTC network seed.
 func LookupBTCNetwork() ([]net.IP, error) {
 	var result = make([]net.IP, 0)
@@ -36,4 +40,12 @@ func LookupBTCNetwork() ([]net.IP, error) {
 		result = append(result, ips...)
 	}
 	return result, nil
+}
+
+func LookupRandomBTCNetwork() (net.IP, error) {
+	if ips, err := net.LookupIP(btcSeedHosts[seedRng.Intn(len(btcSeedHosts))]); err != nil {
+		return nil, err
+	} else {
+		return ips[seedRng.Intn(len(ips))], nil
+	}
 }

@@ -4,7 +4,7 @@ import (
 	"net"
 )
 
-type DaemonConstructor func(ctx *Context, addr net.Addr) Daemon
+type DaemonConstructor func(ctx *Context, addr *net.TCPAddr) Daemon
 type SeedProvider func() ([]net.IP, error)
 
 // Context contains
@@ -21,7 +21,7 @@ func (c *Context) RegisterSeedProvider(name string, provider SeedProvider) {
 	c.seedProviders[name] = provider
 }
 
-func (c *Context) NewDaemon(network string, addr net.Addr) (Daemon, error) {
+func (c *Context) NewDaemon(network string, addr *net.TCPAddr) (Daemon, error) {
 	if ctor, ok := c.constructors[network]; ok {
 		return ctor(c, addr), nil
 	}

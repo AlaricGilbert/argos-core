@@ -2,7 +2,9 @@ package bitcoin
 
 import (
 	"context"
+	"math/rand"
 	"net"
+	"time"
 
 	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/argos/serialization"
@@ -11,34 +13,93 @@ import (
 
 type Daemon struct {
 	ctx        *argos.Context
-	addr       net.Addr
-	tcpAddr    *netpoll.TCPAddr
+	addr       *netpoll.TCPAddr
 	conn       *netpoll.TCPConnection
 	txHandler  argos.TransactionHandler
 	mock       bool
 	mockReader netpoll.Reader
+	mockWriter netpoll.Writer
+	nonce      uint64
 }
 
-func (d *Daemon) Spin() error {
-	var err error
+func (d *Daemon) send(command string, data any) error {
+	buf := netpoll.NewLinkBuffer()
 
-	defer d.conn.Close()
-
-	if d.tcpAddr, err = netpoll.ResolveTCPAddr(d.addr.Network(), d.addr.String()); err != nil {
+	if _, err := serialization.Serialize(buf, data); err != nil {
 		return err
 	}
-	if d.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, d.tcpAddr); err != nil {
+
+	// link buffer never returns an error
+	_ = buf.Flush()
+
+	msgLen := buf.Len()
+
+	msg, _ := buf.ReadBinary(msgLen)
+
+	var cmd [12]byte
+	copy(cmd[:], []byte(command))
+
+	header := &MessageHeader{
+		Magic:    MagicMain,
+		Command:  cmd,
+		Length:   uint32(msgLen),
+		Checksum: checksum(msg),
+	}
+
+	w := d.writer()
+
+	if _, err := serialization.Serialize(w, header); err != nil {
 		return err
 	}
+
+	if _, err := w.WriteBinary(msg); err != nil {
+		return err
+	}
+
+	if err := w.Flush(); err != nil {
+		return err
+	}
+
+	_ = buf.Close()
 
 	return nil
 }
 
+func (d *Daemon) sendReject(msg string, code byte, reason string, data [32]byte) error {
+	return d.send(CommandReject, &Reject{
+		Message: VarString(msg),
+		CCode:   code,
+		Reason:  VarString(reason),
+		Data:    data,
+	})
+}
+
+func (d *Daemon) sendVersion() error {
+	return d.send(CommandVersion, &Version{
+		Version:      70015,
+		Services:     NODE_NETWORK,
+		Timestamp:    time.Now().Unix(),
+		AddrReceived: *newNetworkAddress(NODE_NETWORK, &d.addr.TCPAddr),
+		AddrFrom:     *newNetworkAddress(NODE_NETWORK, &d.addr.TCPAddr),
+		Nonce:        d.nonce,
+		UserAgent:    UserAgent,
+		StartHeight:  0,
+		Relay:        false,
+	})
+}
+
 func (d *Daemon) reader() netpoll.Reader {
-	if d.mockReader != nil {
+	if d.mock && d.mockReader != nil {
 		return d.mockReader
 	}
 	return d.conn.Reader()
+}
+
+func (d *Daemon) writer() netpoll.Writer {
+	if d.mock && d.mockWriter != nil {
+		return d.mockWriter
+	}
+	return d.conn.Writer()
 }
 
 func (d *Daemon) header() (*MessageHeader, error) {
@@ -142,55 +203,74 @@ func (d *Daemon) header() (*MessageHeader, error) {
 	return nil, argos.DaemonNotRunningError
 }
 
-func (d *Daemon) payload(header *MessageHeader) (any, error) {
-	if header == nil || header.Length == 0 {
-		return nil, nil
-	}
+func (d *Daemon) handle() error {
+	defer d.reader().Release()
+	var rejectData [32]byte
 
-	var payload interface{}
-	var buf netpoll.Reader
-	var err error
-	var n int
-	// prefetch buffer
-	buf, err = d.reader().Slice(int(header.Length))
+	h, err := d.header()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	switch string(SliceToString(header.Command[:])) {
-	case "version":
-		payload = &Version{}
-	case "addr":
-		payload = &Addr{}
-	case "inv", "getdata", "notfound":
-		payload = &Inventory{}
-	case "tx":
-		payload = &Transaction{}
-	case "block":
-		payload = &Block{}
-	case "headers":
-		payload = &Headers{}
-	case "ping":
-		payload = &Ping{}
-	case "pong":
-		payload = &Pong{}
-	case "reject":
-		payload = &Reject{}
-	case "filteradd":
-		payload = &FilterAdd{}
-	case "filterload":
-		payload = &FilterLoad{}
-	case "merkleblock":
-		payload = &MerkleBlock{}
-	case "getaddr", "mempool", "verack", "filterclear":
-		return nil, nil
-	}
-	n, err = serialization.Deserialize(buf, payload)
-	if err != nil || n != int(header.Length) {
-		return nil, err
+	command := SliceToString(h.Command[:])
+	// received unexpected message that more than buffer limit
+	// consider it's a message that with wrong transmission status
+	// send a reject message
+	if h.Length > BitcoinMessageMaxLength {
+		return d.sendReject(command, REJECT_INVALID, "message too long", rejectData)
 	}
 
-	return payload, nil
+	payload, err := d.reader().ReadBinary(int(h.Length))
+	if checksum(payload) != h.Checksum {
+		return d.sendReject(command, REJECT_INVALID, "message checksum invalid", rejectData)
+	}
+
+	buf := netpoll.NewLinkBuffer()
+	_, _ = buf.WriteBinary(payload)
+	_ = buf.Flush()
+
+	switch command {
+	case CommandReject, CommandVerack:
+		// DO nothing
+	case CommandVersion:
+		return d.handleVersion(buf)
+	default:
+		d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
+	}
+
+	return buf.Close()
+}
+
+func (d *Daemon) handleVersion(reader netpoll.Reader) error {
+	var version Version
+	serialization.Deserialize(reader, &version)
+	return d.sendVersion()
+}
+
+func (d *Daemon) Spin() error {
+	var err error
+
+	defer d.conn.Close()
+
+	if !d.mock {
+		d.nonce = rand.Uint64()
+
+		if d.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, d.addr); err != nil {
+			return err
+		}
+	}
+
+	if err = d.sendVersion(); err != nil {
+		return err
+	}
+
+	for d.mock || d.conn.IsActive() {
+		if err = d.handle(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (d *Daemon) Halt() error {
@@ -204,14 +284,17 @@ func (d *Daemon) OnTransactionReceived(handler argos.TransactionHandler) {
 	d.txHandler = handler
 }
 
-func NewDaemon(ctx *argos.Context, addr net.Addr) argos.Daemon {
+func NewDaemon(ctx *argos.Context, addr *net.TCPAddr) argos.Daemon {
 	return &Daemon{
-		ctx:  ctx,
-		addr: addr,
+		ctx: ctx,
+		addr: &netpoll.TCPAddr{
+			TCPAddr: *addr,
+		},
 	}
 }
 
-func (d *Daemon) Mock(reader netpoll.Reader) {
+func (d *Daemon) Mock(reader netpoll.Reader, writer netpoll.Writer) {
 	d.mock = true
 	d.mockReader = reader
+	d.mockWriter = writer
 }

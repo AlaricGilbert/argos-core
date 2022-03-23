@@ -3,7 +3,12 @@ package bitcoin
 import (
 	"net"
 	"net/netip"
+	"time"
 )
+
+type Message interface {
+	NetworkAddress | Inventory | Version | Transaction | Block
+}
 
 type MessageHeader struct {
 	Magic    NetworkMagic // Magic value indicating message origin network, and used to seek to next message when stream state is unknown
@@ -20,6 +25,17 @@ type NetworkAddress struct {
 	Port     uint16   `order:"network"` // port number, network byte order
 }
 
+func NewNetworkAddress(services ServiceType, addr *net.TCPAddr) *NetworkAddress {
+	netAddr := &NetworkAddress{
+		Time:     uint32(time.Now().Unix()),
+		Services: uint64(services),
+		Port:     uint16(addr.Port),
+	}
+
+	copy(netAddr.IP[:], addr.IP)
+	return netAddr
+}
+
 func (a *NetworkAddress) AddrPort() netip.AddrPort {
 	return netip.AddrPortFrom(netip.AddrFrom16(a.IP), a.Port)
 }
@@ -33,6 +49,16 @@ type networkAddress struct {
 	Services uint64   // same service(s) listed in version
 	IP       [16]byte // IPv6 address. Network byte order. The original client only supported IPv4 and only Read the last 4 bytes to get the IPv4 address. However, the IPv4 address is written into the message as a 16 byte IPv4-mapped IPv6 address
 	Port     uint16   `order:"network"` // port number, network byte order
+}
+
+func newNetworkAddress(services ServiceType, addr *net.TCPAddr) *networkAddress {
+	netAddr := &networkAddress{
+		Services: uint64(services),
+		Port:     uint16(addr.Port),
+	}
+
+	copy(netAddr.IP[:], addr.IP)
+	return netAddr
 }
 
 func (a *networkAddress) AddrPort() netip.AddrPort {

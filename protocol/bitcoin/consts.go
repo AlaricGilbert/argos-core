@@ -77,3 +77,15 @@ const (
 	REJECT_INSUFFICIENTFEE = 0x42
 	REJECT_CHECKPOINT      = 0x43
 )
+
+const BitcoinMessageMaxLength = 4096 * 1024 // 4096 kilobytes
+
+const (
+	CommandReject  = "reject"
+	CommandVersion = "version"
+	CommandVerack  = "verack"
+)
+
+const (
+	UserAgent = "/Argos:0.1/"
+)
