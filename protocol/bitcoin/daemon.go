@@ -17,7 +17,6 @@ type Daemon struct {
 	s          *sniffer.Sniffer
 	addr       *netpoll.TCPAddr
 	conn       *netpoll.TCPConnection
-	txHandler  sniffer.TransactionHandler
 	mock       bool
 	mockReader netpoll.Reader
 	mockWriter netpoll.Writer
@@ -324,10 +323,6 @@ func (d *Daemon) Halt() error {
 		return sniffer.DaemonNotRunningError
 	}
 	return d.conn.Close()
-}
-
-func (d *Daemon) OnTransactionReceived(handler sniffer.TransactionHandler) {
-	d.txHandler = handler
 }
 
 func NewDaemon(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Daemon {

@@ -11,6 +11,8 @@ type SeedProvider func() ([]net.IP, error)
 type Sniffer struct {
 	constructors  map[string]DaemonConstructor
 	seedProviders map[string]SeedProvider
+	// Transactions are used for daemons to report transaction notifies
+	Transactions chan TransactionNotify
 }
 
 func (c *Sniffer) RegisterDaemonConstructor(name string, constructor DaemonConstructor) {
@@ -39,5 +41,6 @@ func NewContext() *Sniffer {
 	return &Sniffer{
 		constructors:  make(map[string]DaemonConstructor),
 		seedProviders: make(map[string]SeedProvider),
+		Transactions:  make(chan TransactionNotify, 32),
 	}
 }

@@ -16,8 +16,6 @@ type TransactionNotify struct {
 	TxID []byte
 }
 
-type TransactionHandler func(tx TransactionNotify) error
-
 // Daemon is an interface that describes the behaviour of an abstract cryptocurrency daemon in argos system
 type Daemon interface {
 	// Spin tries to connect the specified server and start spinning up the daemon packet handler.
@@ -25,6 +23,4 @@ type Daemon interface {
 	Spin() error
 	// Halt will immediately stop the daemon handle procedure
 	Halt() error
-	// OnTransactionReceived make the daemon calls the given handler every time the daemon received a tx packet
-	OnTransactionReceived(handler TransactionHandler)
 }
