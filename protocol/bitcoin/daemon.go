@@ -225,12 +225,23 @@ func (d *Daemon) header() (*MessageHeader, error) {
 }
 
 func (d *Daemon) handle() error {
-	defer d.reader().Release()
-	defer d.writer().Flush()
 	var rejectData [32]byte
+	var h *MessageHeader
+	var err error
+	var payload *netpoll.LinkBuffer
+	var data []byte
+	defer func() {
+		d.reader().Release()
+		d.writer().Flush()
+		if payload != nil {
+			payload.Close()
+		}
+		if err != nil {
+			d.logger().WithError(err).Warn("bitcoin daemon handle func exited with error")
+		}
+	}()
 
-	h, err := d.header()
-	if err != nil {
+	if h, err = d.header(); err != nil {
 		return err
 	}
 
@@ -242,23 +253,26 @@ func (d *Daemon) handle() error {
 		return d.sendReject(command, REJECT_INVALID, "message too long", rejectData)
 	}
 
-	slice, err := d.reader().Slice(int(h.Length))
-	if err != nil {
+	if data, err = d.reader().ReadBinary(int(h.Length)); err != nil {
+		return err
+	} else if h.Checksum != checksum(data) {
+		err = d.sendReject(command, REJECT_INVALID, "message checksum invalid", rejectData)
 		return err
 	}
 
-	payload, _ := slice.ReadBinary(int(h.Length))
-	if checksum(payload) != h.Checksum {
-		return d.sendReject(command, REJECT_INVALID, "message checksum invalid", rejectData)
-	}
+	payload = netpoll.NewLinkBuffer()
+	payload.WriteBinary(data)
+	payload.Flush()
 
 	switch command {
 	case CommandReject, CommandVerack:
 		// DO nothing
 	case CommandVersion:
-		return d.handleVersion(d.reader())
+		err = d.handleVersion(payload)
+		return err
 	default:
-		d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
+		err = d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
+		return err
 	}
 
 	return nil
@@ -266,7 +280,10 @@ func (d *Daemon) handle() error {
 
 func (d *Daemon) handleVersion(reader netpoll.Reader) error {
 	var version Version
-	serialization.Deserialize(reader, &version)
+	if _, err := serialization.Deserialize(reader, &version); err != nil {
+		return err
+	}
+	d.logger().WithField("version", version).Info("bitcoin payload received")
 	return d.sendVersion()
 }
 
