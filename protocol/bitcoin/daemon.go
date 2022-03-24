@@ -7,17 +7,17 @@ import (
 	"net"
 	"time"
 
-	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/argos/serialization"
+	"github.com/AlaricGilbert/argos-core/argos/sniffer"
 	"github.com/cloudwego/netpoll"
 	"github.com/sirupsen/logrus"
 )
 
 type Daemon struct {
-	ctx        *argos.Context
+	s          *sniffer.Sniffer
 	addr       *netpoll.TCPAddr
 	conn       *netpoll.TCPConnection
-	txHandler  argos.TransactionHandler
+	txHandler  sniffer.TransactionHandler
 	mock       bool
 	mockReader netpoll.Reader
 	mockWriter netpoll.Writer
@@ -221,7 +221,7 @@ func (d *Daemon) header() (*MessageHeader, error) {
 
 		return &header, nil
 	}
-	return nil, argos.DaemonNotRunningError
+	return nil, sniffer.DaemonNotRunningError
 }
 
 func (d *Daemon) handle() error {
@@ -321,18 +321,18 @@ func (d *Daemon) Spin() error {
 func (d *Daemon) Halt() error {
 	d.logger().Info("daemon spin halting")
 	if d.conn == nil || !d.conn.IsActive() {
-		return argos.DaemonNotRunningError
+		return sniffer.DaemonNotRunningError
 	}
 	return d.conn.Close()
 }
 
-func (d *Daemon) OnTransactionReceived(handler argos.TransactionHandler) {
+func (d *Daemon) OnTransactionReceived(handler sniffer.TransactionHandler) {
 	d.txHandler = handler
 }
 
-func NewDaemon(ctx *argos.Context, addr *net.TCPAddr) argos.Daemon {
+func NewDaemon(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Daemon {
 	return &Daemon{
-		ctx: ctx,
+		s: ctx,
 		addr: &netpoll.TCPAddr{
 			TCPAddr: *addr,
 		},
