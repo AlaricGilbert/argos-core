@@ -2,6 +2,8 @@ package sniffer
 
 import (
 	"net"
+
+	"github.com/sirupsen/logrus"
 )
 
 type DaemonConstructor func(ctx *Sniffer, addr *net.TCPAddr) Daemon
@@ -11,6 +13,7 @@ type SeedProvider func() ([]net.IP, error)
 type Sniffer struct {
 	constructors  map[string]DaemonConstructor
 	seedProviders map[string]SeedProvider
+	logger        *logrus.Logger
 	// Transactions are used for daemons to report transaction notifies
 	Transactions chan TransactionNotify
 }
@@ -37,10 +40,15 @@ func (c *Sniffer) GetSeedNodes(protocol string) ([]net.IP, error) {
 	return nil, ProtocolNotImplementedError
 }
 
-func NewContext() *Sniffer {
+func NewSniffer() *Sniffer {
 	return &Sniffer{
 		constructors:  make(map[string]DaemonConstructor),
 		seedProviders: make(map[string]SeedProvider),
+		logger:        logrus.New(),
 		Transactions:  make(chan TransactionNotify, 32),
 	}
+}
+
+func (s *Sniffer) Logger() *logrus.Logger {
+	return s.logger
 }

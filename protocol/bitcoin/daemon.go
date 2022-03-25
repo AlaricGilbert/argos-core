@@ -16,6 +16,7 @@ import (
 type Daemon struct {
 	s          *sniffer.Sniffer
 	addr       *netpoll.TCPAddr
+	localAddr  *netpoll.TCPAddr
 	conn       *netpoll.TCPConnection
 	mock       bool
 	mockReader netpoll.Reader
@@ -24,7 +25,7 @@ type Daemon struct {
 }
 
 func (d *Daemon) logger() *logrus.Entry {
-	return logrus.WithFields(logrus.Fields{
+	return d.s.Logger().WithFields(logrus.Fields{
 		"address": d.addr,
 		"nonce":   fmt.Sprintf("0x%x", d.nonce),
 	})
@@ -34,7 +35,7 @@ func (d *Daemon) send(command string, data any) error {
 	var err error
 	defer func() {
 		if err != nil {
-			d.logger().WithField("error", err).Warn("bitcoin daemon sending message failed")
+			d.logger().WithError(err).Warn("bitcoin daemon sending message failed")
 		}
 	}()
 	buf := netpoll.NewLinkBuffer()
@@ -95,16 +96,49 @@ func (d *Daemon) sendReject(msg string, code byte, reason string, data [32]byte)
 }
 
 func (d *Daemon) sendVersion() error {
+	addr := d.addr
+	addr.IP = addr.IP.To16()
 	return d.send(CommandVersion, &Version{
 		Version:      70015,
-		Services:     NODE_NETWORK,
+		Services:     0,
 		Timestamp:    time.Now().Unix(),
-		AddrReceived: *newNetworkAddress(NODE_NETWORK, &d.addr.TCPAddr),
-		AddrFrom:     *newNetworkAddress(NODE_NETWORK, &d.addr.TCPAddr),
+		AddrReceived: *newNetworkAddress(0, &addr.TCPAddr),
+		AddrFrom:     *newNetworkAddress(0, &addr.TCPAddr),
 		Nonce:        d.nonce,
 		UserAgent:    UserAgent,
 		StartHeight:  0,
 		Relay:        false,
+	})
+}
+
+func (d *Daemon) sendVerack() error {
+	return d.send(CommandVerack, nil)
+}
+
+func (d *Daemon) sendInv(invs ...Inventory) error {
+	return d.send(CommandInv, &Inv{
+		Count:     VarInt(len(invs)),
+		Inventory: invs,
+	})
+}
+
+func (d *Daemon) sendGetData(invs ...Inventory) error {
+	return d.send(CommandGetData, &Inv{
+		Count:     VarInt(len(invs)),
+		Inventory: invs,
+	})
+}
+
+func (d *Daemon) sendNotFound(invs ...Inventory) error {
+	return d.send(CommandNotFound, &Inv{
+		Count:     VarInt(len(invs)),
+		Inventory: invs,
+	})
+}
+
+func (d *Daemon) sendPong(nonce uint64) error {
+	return d.send(CommandPong, &Pong{
+		Nonce: nonce,
 	})
 }
 
@@ -264,11 +298,23 @@ func (d *Daemon) handle() error {
 	payload.Flush()
 
 	switch command {
-	case CommandReject, CommandVerack:
+	case CommandReject, CommandVerack, CommandPong:
 		// DO nothing
 	case CommandVersion:
 		err = d.handleVersion(payload)
 		return err
+	case CommandInv:
+		err = d.handleInv(payload)
+	case CommandNotFound:
+		err = d.handleNotFound(payload)
+	// we are not going to send invs
+	case CommandGetData:
+		err = d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
+		return err
+	case CommandTx:
+		err = d.handleTx(payload)
+	case CommandPing:
+		err = d.handlePing(payload)
 	default:
 		err = d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
 		return err
@@ -277,20 +323,86 @@ func (d *Daemon) handle() error {
 	return nil
 }
 
+func deserializePayload[T any](d *Daemon, reader netpoll.Reader) (*T, error) {
+	var t T
+	if _, err := serialization.Deserialize(reader, &t); err != nil {
+		d.logger().WithError(err).Info("bitcoin daemon deserialize payload failed")
+		return nil, err
+	}
+
+	d.logger().WithField("payload", t).Info("bitcoin daemon received payload")
+	return &t, nil
+}
+
 func (d *Daemon) handleVersion(reader netpoll.Reader) error {
-	var version Version
-	if _, err := serialization.Deserialize(reader, &version); err != nil {
+	if _, err := deserializePayload[Version](d, reader); err != nil {
 		return err
 	}
-	d.logger().WithField("version", version).Info("bitcoin payload received")
-	return d.sendVersion()
+	return d.sendVerack()
+}
+
+func (d *Daemon) handleInv(reader netpoll.Reader) error {
+	if inv, err := deserializePayload[Inv](d, reader); err != nil {
+		return err
+	} else {
+		revTime := time.Now()
+		reqInvs := make([]Inventory, 0)
+		for _, ii := range inv.Inventory {
+			// we only support transactions here
+			if ii.Type.Tx() {
+				d.s.Transactions <- sniffer.TransactionNotify{
+					SourceIP:  d.addr.IP,
+					Timestamp: revTime,
+					TxID:      ii.Hash[:],
+				}
+				reqInvs = append(reqInvs, ii)
+			}
+		}
+		d.logger().WithField("requiringInventories", reqInvs).Info("bitcoin daemon received tx inventory")
+		if len(reqInvs) != 0 {
+			if err := d.sendGetData(reqInvs...); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (d *Daemon) handleNotFound(reader netpoll.Reader) error {
+	if nf, err := deserializePayload[NotFound](d, reader); err != nil {
+		return err
+	} else {
+		for _, ii := range nf.Inventory {
+			if ii.Type.Tx() {
+				d.logger().WithField("inv", ii).Warn("bitcoin daemon transaction notfound")
+			}
+		}
+	}
+	return nil
+}
+
+func (d *Daemon) handleTx(reader netpoll.Reader) error {
+	if _, err := deserializePayload[Transaction](d, reader); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Daemon) handlePing(reader netpoll.Reader) error {
+	if ping, err := deserializePayload[Ping](d, reader); err != nil {
+		return err
+	} else {
+		return d.sendPong(ping.Nonce)
+	}
 }
 
 func (d *Daemon) Spin() error {
 	var err error
 
 	defer func() {
-		d.conn.Close()
+		if d.conn != nil {
+			d.conn.Close()
+		}
 		d.logger().Info("daemon spin exited")
 	}()
 
@@ -299,8 +411,12 @@ func (d *Daemon) Spin() error {
 		d.nonce = rand.Uint64()
 
 		if d.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, d.addr); err != nil {
-			d.logger().WithField("error", err).Error("daemon connect failed")
+			d.logger().WithError(err).Error("daemon connect failed")
 			return err
+		}
+
+		d.localAddr = &netpoll.TCPAddr{
+			TCPAddr: *d.conn.LocalAddr().(*net.TCPAddr),
 		}
 	}
 

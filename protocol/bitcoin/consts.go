@@ -82,9 +82,15 @@ const (
 const BitcoinMessageMaxLength = 4096 * 1024 // 4096 kilobytes
 
 const (
-	CommandReject  = "reject"
-	CommandVersion = "version"
-	CommandVerack  = "verack"
+	CommandReject   = "reject"
+	CommandVersion  = "version"
+	CommandVerack   = "verack"
+	CommandInv      = "inv"
+	CommandGetData  = "getdata"
+	CommandNotFound = "notfound"
+	CommandTx       = "tx"
+	CommandPing     = "ping"
+	CommandPong     = "pong"
 )
 
 const (

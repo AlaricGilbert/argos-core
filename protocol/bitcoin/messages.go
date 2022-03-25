@@ -89,6 +89,24 @@ func (a *networkAddress) TCPAddr() *net.TCPAddr {
 	return net.TCPAddrFromAddrPort(a.AddrPort())
 }
 
+// Inv allows a node to advertise its knowledge of one or more objects. It can be received unsolicited, or in reply to getblocks.
+type Inv struct {
+	Count     VarInt
+	Inventory []Inventory `size:"Count"`
+}
+
+// Getdata is used in response to inv, to retrieve the content of a specific object, and is usually sent after receiving an inv packet, after filtering known elements. It can be used to retrieve transactions, but only if they are in the memory pool or relay set - arbitrary access to transactions in the chain is not allowed to avoid having clients start to depend on nodes having full transaction indexes (which modern nodes do not).
+type GetData struct {
+	Count     VarInt
+	Inventory []Inventory `size:"Count"`
+}
+
+// NotFound is a response to a getdata, sent if any requested data items could not be relayed, for example, because the requested transaction was not in the memory pool or relay set.
+type NotFound struct {
+	Count     VarInt
+	Inventory []Inventory `size:"Count"`
+}
+
 // Inventory vectors are used for notifying other nodes about objects they have or data which is being requested.
 type Inventory struct {
 	Type InventoryType // Identifies the object type linked to this inventory
@@ -185,7 +203,7 @@ func (t TransactionIn) String() string {
 	return fmt.Sprintf("{PreviousOutput: %v, ScriptLength: %d, SignatureSctipt: %s, Sequence: %d}",
 		t.PreviousOutput,
 		uint64(t.ScriptLength),
-		string(t.SignatureSctipt),
+		hex.EncodeToString([]byte(t.SignatureSctipt)),
 		t.Sequence,
 	)
 }
@@ -202,7 +220,7 @@ func (t TransactionOut) String() string {
 	return fmt.Sprintf("{Value: %d, PKScriptLength: %d, PKScript: %s}",
 		t.Value,
 		uint64(t.PKScriptLength),
-		t.PKScript,
+		hex.EncodeToString([]byte(t.PKScript)),
 	)
 }
 

@@ -23,6 +23,9 @@ func Serialize(w netpoll.Writer, data any) (int, error) {
 // It should be noticed the `data` must be a pointer when a slice's corresponding size field
 // was not set to the slice's length.
 func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (int, error) {
+	if data == nil {
+		return 0, nil
+	}
 	// error
 	var err error
 	// count of total bytes have been read
