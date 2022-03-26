@@ -15,7 +15,7 @@ func initOnce() {
 
 func Init(s *sniffer.Sniffer) error {
 	once.Do(initOnce)
-	s.RegisterDaemonConstructor("bitcoin", NewDaemon)
+	s.RegisterPeerConstructor("bitcoin", NewPeer)
 	s.RegisterSeedProvider("bitcoin", LookupBTCNetwork)
 	return nil
 }

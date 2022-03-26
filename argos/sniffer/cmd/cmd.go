@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// currently works as a bitcoin daemon
+// currently works as a bitcoin peer
 func main() {
 	s := sniffer.NewSniffer()
 	if bitcoin.Init(s) != nil {
@@ -32,7 +32,7 @@ func main() {
 		panic(err)
 	}
 
-	d, _ := s.NewDaemon("bitcoin", &net.TCPAddr{
+	d, _ := s.NewPeer("bitcoin", &net.TCPAddr{
 		IP:   ip,
 		Port: 8333,
 	})

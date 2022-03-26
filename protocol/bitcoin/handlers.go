@@ -12,7 +12,7 @@ import (
 
 // Ctx stores the context for a message handler
 type Ctx struct {
-	daemon      *Daemon
+	peer        *Peer
 	header      MessageHeader
 	command     string
 	payloadhash [32]byte
@@ -47,23 +47,23 @@ var commandHandlers = map[string]CommandHandler{
 func deserializePayload[T any](ctx *Ctx) *T {
 	var t T
 	if _, ctx.err = serialization.Deserialize(ctx.payload, &t); ctx.err != nil {
-		ctx.daemon.logger().WithError(ctx.err).Info("bitcoin daemon deserialize payload failed")
+		ctx.peer.logger().WithError(ctx.err).Info("bitcoin peer deserialize payload failed")
 		return nil
 	}
 
-	ctx.daemon.logger().WithField("payload", t).WithField("type", fmt.Sprintf("%T", t)).Info("bitcoin daemon received payload")
+	ctx.peer.logger().WithField("payload", t).WithField("type", fmt.Sprintf("%T", t)).Info("bitcoin peer received payload")
 	return &t
 }
 
 func handleNop(ctx *Ctx) {}
 
 func handleSendHeaders(ctx *Ctx) {
-	ctx.daemon.sendheaders = true
+	ctx.peer.sendheaders = true
 }
 
 func handleVersion(ctx *Ctx) {
 	if _ = deserializePayload[Version](ctx); ctx.err == nil {
-		ctx.err = ctx.daemon.sendVerack()
+		ctx.err = ctx.peer.sendVerack()
 	}
 }
 
@@ -74,19 +74,19 @@ func handleInv(ctx *Ctx) {
 		for _, ii := range inv.Inventory {
 			// we only support transactions here
 			if ii.Type.Tx() {
-				ctx.daemon.s.NotifyTransaction(sniffer.TransactionNotify{
-					SourceIP:  ctx.daemon.addr.IP,
+				ctx.peer.s.NotifyTransaction(sniffer.TransactionNotify{
+					SourceIP:  ctx.peer.addr.IP,
 					Timestamp: revTime,
 					TxID:      ii.Hash[:],
 				})
-				if _, ok := ctx.daemon.txs[ii.Hash]; !ok {
+				if _, ok := ctx.peer.txs[ii.Hash]; !ok {
 					reqInvs = append(reqInvs, ii)
 				}
 			}
 		}
-		ctx.daemon.logger().WithField("requiringInventories", reqInvs).Info("bitcoin daemon received tx inventory")
+		ctx.peer.logger().WithField("requiringInventories", reqInvs).Info("bitcoin peer received tx inventory")
 		if len(reqInvs) != 0 {
-			ctx.err = ctx.daemon.sendGetData(reqInvs...)
+			ctx.err = ctx.peer.sendGetData(reqInvs...)
 		}
 	}
 }
@@ -95,7 +95,7 @@ func handleNotFound(ctx *Ctx) {
 	if nf := deserializePayload[NotFound](ctx); ctx.err == nil {
 		for _, ii := range nf.Inventory {
 			if ii.Type.Tx() {
-				ctx.daemon.logger().WithField("inv", ii).Warn("bitcoin daemon transaction notfound")
+				ctx.peer.logger().WithField("inv", ii).Warn("bitcoin peer transaction notfound")
 			}
 		}
 	}
@@ -103,13 +103,13 @@ func handleNotFound(ctx *Ctx) {
 
 func handleTx(ctx *Ctx) {
 	if tx := deserializePayload[Transaction](ctx); ctx.err == nil {
-		ctx.daemon.txs[ctx.payloadhash] = *tx
+		ctx.peer.txs[ctx.payloadhash] = *tx
 	}
 }
 
 func handlePing(ctx *Ctx) {
 	if ping := deserializePayload[Ping](ctx); ctx.err == nil {
-		ctx.err = ctx.daemon.sendPong(ping.Nonce)
+		ctx.err = ctx.peer.sendPong(ping.Nonce)
 	}
 }
 
@@ -119,31 +119,31 @@ func handleAddr(ctx *Ctx) {
 		for _, address := range addr.AddrList {
 			addrlist = append(addrlist, *address.TCPAddr())
 		}
-		ctx.daemon.s.NodeConn(ctx.daemon.addr.TCPAddr, addrlist)
+		ctx.peer.s.NodeConn(ctx.peer.addr.TCPAddr, addrlist)
 	}
 }
 
 func handleFilterAdd(ctx *Ctx) {
 	if add := deserializePayload[FilterAdd](ctx); ctx.err == nil {
-		if ctx.daemon.filterLoad != nil {
-			ctx.daemon.filterLoad.Filter = append(ctx.daemon.filterLoad.Filter, add.Data...)
+		if ctx.peer.filterLoad != nil {
+			ctx.peer.filterLoad.Filter = append(ctx.peer.filterLoad.Filter, add.Data...)
 		}
 	}
 }
 
 func handleFilterLoad(ctx *Ctx) {
 	if load := deserializePayload[FilterLoad](ctx); ctx.err == nil {
-		ctx.daemon.filterLoad = load
+		ctx.peer.filterLoad = load
 	}
 }
 
 func handleFilterClear(ctx *Ctx) {
-	ctx.daemon.filterLoad = nil
+	ctx.peer.filterLoad = nil
 }
 
 func handleFeeFilter(ctx *Ctx) {
 	if filter := deserializePayload[FeeFilter](ctx); ctx.err == nil {
-		ctx.daemon.feeFilter = int64(*filter)
+		ctx.peer.feeFilter = int64(*filter)
 	}
 }
 
@@ -156,13 +156,13 @@ func handleGetHeaders(ctx *Ctx) {
 				Hash: bl,
 			})
 		}
-		ctx.err = ctx.daemon.sendNotFound(invs...)
+		ctx.err = ctx.peer.sendNotFound(invs...)
 	}
 }
 
 func handleGetData(ctx *Ctx) {
 	if getdata := deserializePayload[GetData](ctx); ctx.err == nil {
-		ctx.err = ctx.daemon.sendNotFound(getdata.Inventory...)
+		ctx.err = ctx.peer.sendNotFound(getdata.Inventory...)
 	}
 }
 
@@ -173,6 +173,6 @@ func handleHeaders(ctx *Ctx) {
 
 func handleSendCmpct(ctx *Ctx) {
 	if cmpct := deserializePayload[SendCmpct](ctx); ctx.err != nil {
-		ctx.daemon.announce = cmpct.Announce
+		ctx.peer.announce = cmpct.Announce
 	}
 }

@@ -7,20 +7,20 @@ import (
 
 // TransactionNotify represents an abstract transaction which has been
 type TransactionNotify struct {
-	// SourceIP is the source where the daemon get notified
+	// SourceIP is the source where the current node get notified
 	SourceIP net.IP
-	// Timestamp is the time when the daemon get notified
+	// Timestamp is the time when the current node get notified
 	Timestamp time.Time
 	// TxID is the re-hashed abstract representation of an abstract transaction, which can be computed by real
 	// implementation-related cryptocurrency transaction ids
 	TxID []byte
 }
 
-// Daemon is an interface that describes the behaviour of an abstract cryptocurrency daemon in argos system
-type Daemon interface {
-	// Spin tries to connect the specified server and start spinning up the daemon packet handler.
+// Peer is an interface that describes the behaviour of an abstract cryptocurrency peer in argos system
+type Peer interface {
+	// Spin tries to connect the specified server and start spinning up the peer packet handler.
 	// It will never return until an error occurred.
 	Spin() error
-	// Halt will immediately stop the daemon handle procedure
+	// Halt will immediately stop the peer handle procedure
 	Halt() error
 }

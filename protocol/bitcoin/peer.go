@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Daemon struct {
+type Peer struct {
 	s           *sniffer.Sniffer
 	addr        *netpoll.TCPAddr
 	localAddr   *netpoll.TCPAddr
@@ -29,18 +29,18 @@ type Daemon struct {
 	nonce       uint64
 }
 
-func (d *Daemon) logger() *logrus.Entry {
+func (d *Peer) logger() *logrus.Entry {
 	return d.s.Logger().WithFields(logrus.Fields{
 		"address": d.addr,
 		"nonce":   fmt.Sprintf("0x%x", d.nonce),
 	})
 }
 
-func (d *Daemon) send(command string, data any) error {
+func (d *Peer) send(command string, data any) error {
 	var err error
 	defer func() {
 		if err != nil {
-			d.logger().WithError(err).Warn("bitcoin daemon sending message failed")
+			d.logger().WithError(err).Warn("bitcoin peer sending message failed")
 		}
 	}()
 	buf := netpoll.NewLinkBuffer()
@@ -71,7 +71,7 @@ func (d *Daemon) send(command string, data any) error {
 		"command": command,
 		"header":  header,
 		"message": data,
-	}).Info("bitcoin daemon sending message")
+	}).Info("bitcoin peer sending message")
 
 	w := d.writer()
 
@@ -92,7 +92,7 @@ func (d *Daemon) send(command string, data any) error {
 	return nil
 }
 
-func (d *Daemon) sendReject(msg string, code byte, reason string, data [32]byte) error {
+func (d *Peer) sendReject(msg string, code byte, reason string, data [32]byte) error {
 	return d.send(CommandReject, &Reject{
 		Message: VarString(msg),
 		CCode:   code,
@@ -101,7 +101,7 @@ func (d *Daemon) sendReject(msg string, code byte, reason string, data [32]byte)
 	})
 }
 
-func (d *Daemon) sendVersion() error {
+func (d *Peer) sendVersion() error {
 	addr := d.addr
 	addr.IP = addr.IP.To16()
 	return d.send(CommandVersion, &Version{
@@ -117,52 +117,52 @@ func (d *Daemon) sendVersion() error {
 	})
 }
 
-func (d *Daemon) sendVerack() error {
+func (d *Peer) sendVerack() error {
 	return d.send(CommandVerack, nil)
 }
 
-func (d *Daemon) sendInv(invs ...Inventory) error {
+func (d *Peer) sendInv(invs ...Inventory) error {
 	return d.send(CommandInv, &Inv{
 		Count:     VarInt(len(invs)),
 		Inventory: invs,
 	})
 }
 
-func (d *Daemon) sendGetData(invs ...Inventory) error {
+func (d *Peer) sendGetData(invs ...Inventory) error {
 	return d.send(CommandGetData, &Inv{
 		Count:     VarInt(len(invs)),
 		Inventory: invs,
 	})
 }
 
-func (d *Daemon) sendNotFound(invs ...Inventory) error {
+func (d *Peer) sendNotFound(invs ...Inventory) error {
 	return d.send(CommandNotFound, &Inv{
 		Count:     VarInt(len(invs)),
 		Inventory: invs,
 	})
 }
 
-func (d *Daemon) sendPong(nonce uint64) error {
+func (d *Peer) sendPong(nonce uint64) error {
 	return d.send(CommandPong, &Pong{
 		Nonce: nonce,
 	})
 }
 
-func (d *Daemon) reader() netpoll.Reader {
+func (d *Peer) reader() netpoll.Reader {
 	if d.mock && d.mockReader != nil {
 		return d.mockReader
 	}
 	return d.conn.Reader()
 }
 
-func (d *Daemon) writer() netpoll.Writer {
+func (d *Peer) writer() netpoll.Writer {
 	if d.mock && d.mockWriter != nil {
 		return d.mockWriter
 	}
 	return d.conn.Writer()
 }
 
-func (d *Daemon) header(ctx *Ctx) {
+func (d *Peer) header(ctx *Ctx) {
 	defer d.reader().Release()
 
 	if d.mock || d.conn.IsActive() {
@@ -256,14 +256,14 @@ func (d *Daemon) header(ctx *Ctx) {
 		}
 		return
 	}
-	ctx.err = sniffer.DaemonNotRunningError
+	ctx.err = sniffer.PeerNotRunningError
 }
 
-func (d *Daemon) handle() error {
+func (d *Peer) handle() error {
 	var rejectData [32]byte
 	var data []byte
 	var ctx = &Ctx{
-		daemon: d,
+		peer: d,
 	}
 	defer func() {
 		d.reader().Release()
@@ -272,7 +272,7 @@ func (d *Daemon) handle() error {
 			ctx.payload.Close()
 		}
 		if ctx.err != nil {
-			d.logger().WithError(ctx.err).Warn("bitcoin daemon handle func exited with error")
+			d.logger().WithError(ctx.err).Warn("bitcoin peer handle func exited with error")
 		}
 	}()
 
@@ -309,22 +309,22 @@ func (d *Daemon) handle() error {
 	return ctx.err
 }
 
-func (d *Daemon) Spin() error {
+func (d *Peer) Spin() error {
 	var err error
 
 	defer func() {
 		if d.conn != nil {
 			d.conn.Close()
 		}
-		d.logger().Info("daemon spin exited")
+		d.logger().Info("bitcoin peer spin exited")
 	}()
 
-	d.logger().Info("daemon spinning")
+	d.logger().Info("bitcoin peer spinning")
 	if !d.mock {
 		d.nonce = rand.Uint64()
 
 		if d.conn, err = netpoll.DialTCP(context.Background(), "tcp", nil, d.addr); err != nil {
-			d.logger().WithError(err).Error("daemon connect failed")
+			d.logger().WithError(err).Error("peer connect failed")
 			return err
 		}
 
@@ -346,16 +346,16 @@ func (d *Daemon) Spin() error {
 	return nil
 }
 
-func (d *Daemon) Halt() error {
-	d.logger().Info("daemon spin halting")
+func (d *Peer) Halt() error {
+	d.logger().Info("bitcoin peer spin halting")
 	if d.conn == nil || !d.conn.IsActive() {
-		return sniffer.DaemonNotRunningError
+		return sniffer.PeerNotRunningError
 	}
 	return d.conn.Close()
 }
 
-func NewDaemon(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Daemon {
-	return &Daemon{
+func NewPeer(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Peer {
+	return &Peer{
 		s: ctx,
 		addr: &netpoll.TCPAddr{
 			TCPAddr: *addr,
@@ -364,10 +364,10 @@ func NewDaemon(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Daemon {
 	}
 }
 
-func (d *Daemon) Mock(reader netpoll.Reader, writer netpoll.Writer) {
+func (d *Peer) Mock(reader netpoll.Reader, writer netpoll.Writer) {
 	d.mock = true
 	d.mockReader = reader
 	d.mockWriter = writer
 
-	d.logger().Info("bitcoin daemon mocked")
+	d.logger().Info("bitcoin peer mocked")
 }

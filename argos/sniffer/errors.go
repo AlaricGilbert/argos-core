@@ -9,8 +9,8 @@ var (
 	ConnectFailedError = errors.New("connect failed")
 	// DisconnectedError means the remote server has been disconnected
 	DisconnectedError = errors.New("remote socket disconnected")
-	// DaemonHaltedError means the daemon has been halted
-	DaemonHaltedError = errors.New("daemon spinning halted")
-	// DaemonNotRunningError means the daemon not running
-	DaemonNotRunningError = errors.New("daemon not running")
+	// PeerHaltedError means the peer has been halted
+	PeerHaltedError = errors.New("peer spinning halted")
+	// PeerNotRunningError means the peer not running
+	PeerNotRunningError = errors.New("peer not running")
 )

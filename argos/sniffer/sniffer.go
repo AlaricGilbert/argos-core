@@ -6,19 +6,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type DaemonConstructor func(ctx *Sniffer, addr *net.TCPAddr) Daemon
+type PeerConstructor func(ctx *Sniffer, addr *net.TCPAddr) Peer
 type SeedProvider func() ([]net.IP, error)
 
 // Sniffer repesents an abstract super node that could connect to multiple nodes simultaneously
 type Sniffer struct {
-	constructors  map[string]DaemonConstructor
+	constructors  map[string]PeerConstructor
 	seedProviders map[string]SeedProvider
 	logger        *logrus.Logger
 	transactions  chan TransactionNotify
 	running       bool
 }
 
-func (c *Sniffer) RegisterDaemonConstructor(name string, constructor DaemonConstructor) {
+func (c *Sniffer) RegisterPeerConstructor(name string, constructor PeerConstructor) {
 	c.constructors[name] = constructor
 }
 
@@ -26,7 +26,7 @@ func (c *Sniffer) RegisterSeedProvider(name string, provider SeedProvider) {
 	c.seedProviders[name] = provider
 }
 
-func (c *Sniffer) NewDaemon(protocol string, addr *net.TCPAddr) (Daemon, error) {
+func (c *Sniffer) NewPeer(protocol string, addr *net.TCPAddr) (Peer, error) {
 	if ctor, ok := c.constructors[protocol]; ok {
 		return ctor(c, addr), nil
 	}
@@ -42,7 +42,7 @@ func (c *Sniffer) GetSeedNodes(protocol string) ([]net.IP, error) {
 
 func NewSniffer() *Sniffer {
 	return &Sniffer{
-		constructors:  make(map[string]DaemonConstructor),
+		constructors:  make(map[string]PeerConstructor),
 		seedProviders: make(map[string]SeedProvider),
 		logger:        logrus.New(),
 		transactions:  make(chan TransactionNotify),
