@@ -290,7 +290,6 @@ func (d *Peer) handle() error {
 	}
 
 	if data, ctx.err = d.reader().ReadBinary(int(ctx.header.Length)); ctx.err != nil {
-		panic(ctx.err)
 		return ctx.err
 	} else if ctx.payloadhash, ctx.checksum = checksum(data); ctx.header.Checksum != ctx.checksum {
 		ctx.err = d.sendReject(ctx.command, REJECT_INVALID, "message checksum invalid", rejectData)
