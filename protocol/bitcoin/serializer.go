@@ -66,6 +66,11 @@ func (ser *BitcoinSerializer) Deserialize(r netpoll.Reader, data any, order bina
 		bytes, err = serialization.Deserialize(r, &svc)
 		*data = ServiceType(svc)
 		return bytes, err
+	case *FeeFilter:
+		var fee int64
+		bytes, err = serialization.Deserialize(r, &fee)
+		*data = FeeFilter(fee)
+		return bytes, err
 	case *VarString:
 		var size VarInt
 		var str string
@@ -165,6 +170,10 @@ func (ser *BitcoinSerializer) Serialize(w netpoll.Writer, data any, order binary
 		return serialization.SerializeWithEndian(w, uint64(*data), order)
 	case ServiceType:
 		return serialization.SerializeWithEndian(w, uint64(data), order)
+	case FeeFilter:
+		return serialization.SerializeWithEndian(w, int64(data), order)
+	case *FeeFilter:
+		return serialization.SerializeWithEndian(w, int64(*data), order)
 	case *VarString:
 		return data.Serialize(w, order)
 	case VarString:

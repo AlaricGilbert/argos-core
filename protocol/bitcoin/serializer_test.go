@@ -8,6 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func sum(data []byte) uint32 {
+	_, s := checksum(data)
+	return s
+}
+
 func TestDeserializeVersion(t *testing.T) {
 	initOnce()
 	var data = []byte{
@@ -64,7 +69,7 @@ func TestDeserializeVersion(t *testing.T) {
 
 	assert.Equal(t, uint32(101), header.Length)
 	assert.Equal(t, "version", SliceToString(header.Command[:]))
-	assert.Equal(t, checksum(data[24:]), header.Checksum)
+	assert.Equal(t, sum(data[24:]), header.Checksum)
 
 	n, err = serialization.Deserialize(buf, &ver)
 	assert.Nil(t, err)
@@ -148,7 +153,7 @@ func TestDeserializeAddr(t *testing.T) {
 
 	assert.Equal(t, uint32(31), header.Length)
 	assert.Equal(t, "addr", SliceToString(header.Command[:]))
-	assert.Equal(t, checksum(data[24:]), header.Checksum)
+	assert.Equal(t, sum(data[24:]), header.Checksum)
 
 	n, err = serialization.Deserialize(buf, &addr)
 	assert.Nil(t, err)
@@ -286,7 +291,7 @@ func TestDeserializeTx(t *testing.T) {
 
 	assert.Equal(t, uint32(258), header.Length)
 	assert.Equal(t, "tx", SliceToString(header.Command[:]))
-	assert.Equal(t, checksum(data[24:]), header.Checksum)
+	assert.Equal(t, sum(data[24:]), header.Checksum)
 
 	n, err = serialization.Deserialize(buf, &tx)
 	assert.Nil(t, err)

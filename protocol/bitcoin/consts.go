@@ -82,15 +82,24 @@ const (
 const BitcoinMessageMaxLength = 4096 * 1024 // 4096 kilobytes
 
 const (
-	CommandReject   = "reject"
-	CommandVersion  = "version"
-	CommandVerack   = "verack"
-	CommandInv      = "inv"
-	CommandGetData  = "getdata"
-	CommandNotFound = "notfound"
-	CommandTx       = "tx"
-	CommandPing     = "ping"
-	CommandPong     = "pong"
+	CommandReject      = "reject"
+	CommandVersion     = "version"
+	CommandVerack      = "verack"
+	CommandInv         = "inv"
+	CommandGetData     = "getdata"
+	CommandNotFound    = "notfound"
+	CommandTx          = "tx"
+	CommandPing        = "ping"
+	CommandPong        = "pong"
+	CommandAddr        = "addr"
+	CommandFilterAdd   = "filteradd"
+	CommandFilterClear = "filterclear"
+	CommandFilterLoad  = "filterload"
+	CommandFeeFilter   = "feefilter"
+	CommandSendHeaders = "sendheaders"
+	CommandGetHeaders  = "getheaders"
+	CommandHeaders     = "headers"
+	CommandSendCmpct   = "sendcmpct"
 )
 
 const (

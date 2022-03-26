@@ -26,3 +26,4 @@ go.work
 
 # logs
 *.log
+logs/

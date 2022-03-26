@@ -8,16 +8,16 @@ import (
 )
 
 // hash returns the hash result of sha256(sha256(data))
-func hash(data []byte) []byte {
+func hash(data []byte) [32]byte {
 	h := sha256.Sum256(data)
 	hh := sha256.Sum256(h[:])
 
-	return hh[:]
+	return hh
 }
 
-func checksum(data []byte) uint32 {
+func checksum(data []byte) ([32]byte, uint32) {
 	hh := hash(data)
-	return binary.LittleEndian.Uint32(hh)
+	return hh, binary.LittleEndian.Uint32(hh[:])
 }
 
 // Index finds the index of given element e in array s returns index and succeed result of the process

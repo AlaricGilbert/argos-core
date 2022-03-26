@@ -14,14 +14,19 @@ import (
 )
 
 type Daemon struct {
-	s          *sniffer.Sniffer
-	addr       *netpoll.TCPAddr
-	localAddr  *netpoll.TCPAddr
-	conn       *netpoll.TCPConnection
-	mock       bool
-	mockReader netpoll.Reader
-	mockWriter netpoll.Writer
-	nonce      uint64
+	s           *sniffer.Sniffer
+	addr        *netpoll.TCPAddr
+	localAddr   *netpoll.TCPAddr
+	conn        *netpoll.TCPConnection
+	txs         map[[32]byte]Transaction
+	announce    bool
+	sendheaders bool
+	filterLoad  *FilterLoad
+	feeFilter   int64
+	mock        bool
+	mockReader  netpoll.Reader
+	mockWriter  netpoll.Writer
+	nonce       uint64
 }
 
 func (d *Daemon) logger() *logrus.Entry {
@@ -54,11 +59,12 @@ func (d *Daemon) send(command string, data any) error {
 	var cmd [12]byte
 	copy(cmd[:], []byte(command))
 
+	_, sum := checksum(msg)
 	header := &MessageHeader{
 		Magic:    MagicMain,
 		Command:  cmd,
 		Length:   uint32(msgLen),
-		Checksum: checksum(msg),
+		Checksum: sum,
 	}
 
 	d.logger().WithFields(logrus.Fields{
@@ -107,7 +113,7 @@ func (d *Daemon) sendVersion() error {
 		Nonce:        d.nonce,
 		UserAgent:    UserAgent,
 		StartHeight:  0,
-		Relay:        false,
+		Relay:        true,
 	})
 }
 
@@ -156,7 +162,7 @@ func (d *Daemon) writer() netpoll.Writer {
 	return d.conn.Writer()
 }
 
-func (d *Daemon) header() (*MessageHeader, error) {
+func (d *Daemon) header(ctx *Ctx) {
 	defer d.reader().Release()
 
 	if d.mock || d.conn.IsActive() {
@@ -200,8 +206,6 @@ func (d *Daemon) header() (*MessageHeader, error) {
 
 		// current byte
 		var b byte
-		// Read error
-		var err error
 		// if a magic code had been totally parsed
 		var parsed bool = false
 		// parsed magic code
@@ -209,8 +213,8 @@ func (d *Daemon) header() (*MessageHeader, error) {
 
 		for !parsed {
 			// tries to Read a byte from connection and returns error when it fails
-			if b, err = d.reader().ReadByte(); err != nil {
-				return nil, err
+			if b, ctx.err = d.reader().ReadByte(); ctx.err != nil {
+				return
 			}
 
 			// despite any state now, when we met start codes, reset the state and t immediately
@@ -240,160 +244,69 @@ func (d *Daemon) header() (*MessageHeader, error) {
 			}
 		}
 
-		var header MessageHeader
-		header.Magic = magic
-		if _, err = serialization.Deserialize(d.reader(), &header.Command); err != nil {
-			return nil, err
+		ctx.header.Magic = magic
+		if _, ctx.err = serialization.Deserialize(d.reader(), &ctx.header.Command); ctx.err != nil {
+			return
 		}
-		if _, err = serialization.Deserialize(d.reader(), &header.Length); err != nil {
-			return nil, err
+		if _, ctx.err = serialization.Deserialize(d.reader(), &ctx.header.Length); ctx.err != nil {
+			return
 		}
-		if _, err = serialization.Deserialize(d.reader(), &header.Checksum); err != nil {
-			return nil, err
+		if _, ctx.err = serialization.Deserialize(d.reader(), &ctx.header.Checksum); ctx.err != nil {
+			return
 		}
-
-		return &header, nil
+		return
 	}
-	return nil, sniffer.DaemonNotRunningError
+	ctx.err = sniffer.DaemonNotRunningError
 }
 
 func (d *Daemon) handle() error {
 	var rejectData [32]byte
-	var h *MessageHeader
-	var err error
-	var payload *netpoll.LinkBuffer
 	var data []byte
+	var ctx = &Ctx{
+		daemon: d,
+	}
 	defer func() {
 		d.reader().Release()
 		d.writer().Flush()
-		if payload != nil {
-			payload.Close()
+		if ctx.payload != nil {
+			ctx.payload.Close()
 		}
-		if err != nil {
-			d.logger().WithError(err).Warn("bitcoin daemon handle func exited with error")
+		if ctx.err != nil {
+			d.logger().WithError(ctx.err).Warn("bitcoin daemon handle func exited with error")
 		}
 	}()
 
-	if h, err = d.header(); err != nil {
-		return err
+	if d.header(ctx); ctx.err != nil {
+		return ctx.err
 	}
 
-	command := SliceToString(h.Command[:])
+	ctx.command = SliceToString(ctx.header.Command[:])
 	// received unexpected message that more than buffer limit
 	// consider it's a message that with wrong transmission status
 	// send a reject message
-	if h.Length > BitcoinMessageMaxLength {
-		return d.sendReject(command, REJECT_INVALID, "message too long", rejectData)
+	if ctx.header.Length > BitcoinMessageMaxLength {
+		ctx.err = d.sendReject(ctx.command, REJECT_INVALID, "message too long", rejectData)
+		return ctx.err
 	}
 
-	if data, err = d.reader().ReadBinary(int(h.Length)); err != nil {
-		return err
-	} else if h.Checksum != checksum(data) {
-		err = d.sendReject(command, REJECT_INVALID, "message checksum invalid", rejectData)
-		return err
+	if data, ctx.err = d.reader().ReadBinary(int(ctx.header.Length)); ctx.err != nil {
+		panic(ctx.err)
+		return ctx.err
+	} else if ctx.payloadhash, ctx.checksum = checksum(data); ctx.header.Checksum != ctx.checksum {
+		ctx.err = d.sendReject(ctx.command, REJECT_INVALID, "message checksum invalid", rejectData)
+		return ctx.err
 	}
 
-	payload = netpoll.NewLinkBuffer()
-	payload.WriteBinary(data)
-	payload.Flush()
+	ctx.payload = netpoll.NewLinkBuffer()
+	ctx.payload.WriteBinary(data)
+	ctx.payload.Flush()
 
-	switch command {
-	case CommandReject, CommandVerack, CommandPong:
-		// DO nothing
-	case CommandVersion:
-		err = d.handleVersion(payload)
-		return err
-	case CommandInv:
-		err = d.handleInv(payload)
-	case CommandNotFound:
-		err = d.handleNotFound(payload)
-	// we are not going to send invs
-	case CommandGetData:
-		err = d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
-		return err
-	case CommandTx:
-		err = d.handleTx(payload)
-	case CommandPing:
-		err = d.handlePing(payload)
-	default:
-		err = d.sendReject(command, REJECT_INVALID, "unsupported", rejectData)
-		return err
-	}
-
-	return nil
-}
-
-func deserializePayload[T any](d *Daemon, reader netpoll.Reader) (*T, error) {
-	var t T
-	if _, err := serialization.Deserialize(reader, &t); err != nil {
-		d.logger().WithError(err).Info("bitcoin daemon deserialize payload failed")
-		return nil, err
-	}
-
-	d.logger().WithField("payload", t).Info("bitcoin daemon received payload")
-	return &t, nil
-}
-
-func (d *Daemon) handleVersion(reader netpoll.Reader) error {
-	if _, err := deserializePayload[Version](d, reader); err != nil {
-		return err
-	}
-	return d.sendVerack()
-}
-
-func (d *Daemon) handleInv(reader netpoll.Reader) error {
-	if inv, err := deserializePayload[Inv](d, reader); err != nil {
-		return err
+	if handler, ok := commandHandlers[ctx.command]; ok {
+		handler(ctx)
 	} else {
-		revTime := time.Now()
-		reqInvs := make([]Inventory, 0)
-		for _, ii := range inv.Inventory {
-			// we only support transactions here
-			if ii.Type.Tx() {
-				d.s.Transactions <- sniffer.TransactionNotify{
-					SourceIP:  d.addr.IP,
-					Timestamp: revTime,
-					TxID:      ii.Hash[:],
-				}
-				reqInvs = append(reqInvs, ii)
-			}
-		}
-		d.logger().WithField("requiringInventories", reqInvs).Info("bitcoin daemon received tx inventory")
-		if len(reqInvs) != 0 {
-			if err := d.sendGetData(reqInvs...); err != nil {
-				return err
-			}
-		}
+		ctx.err = d.sendReject(ctx.command, REJECT_INVALID, "unsupported", rejectData)
 	}
-	return nil
-}
-
-func (d *Daemon) handleNotFound(reader netpoll.Reader) error {
-	if nf, err := deserializePayload[NotFound](d, reader); err != nil {
-		return err
-	} else {
-		for _, ii := range nf.Inventory {
-			if ii.Type.Tx() {
-				d.logger().WithField("inv", ii).Warn("bitcoin daemon transaction notfound")
-			}
-		}
-	}
-	return nil
-}
-
-func (d *Daemon) handleTx(reader netpoll.Reader) error {
-	if _, err := deserializePayload[Transaction](d, reader); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Daemon) handlePing(reader netpoll.Reader) error {
-	if ping, err := deserializePayload[Ping](d, reader); err != nil {
-		return err
-	} else {
-		return d.sendPong(ping.Nonce)
-	}
+	return ctx.err
 }
 
 func (d *Daemon) Spin() error {
@@ -447,6 +360,7 @@ func NewDaemon(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Daemon {
 		addr: &netpoll.TCPAddr{
 			TCPAddr: *addr,
 		},
+		txs: make(map[[32]byte]Transaction),
 	}
 }
 

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net"
+	"time"
 
 	"github.com/AlaricGilbert/argos-core/argos/sniffer"
 	"github.com/AlaricGilbert/argos-core/protocol/bitcoin"
@@ -17,11 +19,7 @@ func main() {
 	}
 
 	s.Logger().AddHook(lfshook.NewHook(
-		lfshook.PathMap{
-			logrus.InfoLevel:  "logs.log",
-			logrus.ErrorLevel: "logs.log",
-			logrus.WarnLevel:  "logs.log",
-		},
+		fmt.Sprintf("logs/%s.log", time.Now().Format(time.RFC3339)),
 		&logrus.TextFormatter{
 			FullTimestamp: true,
 			DisableColors: true,
@@ -38,14 +36,7 @@ func main() {
 		IP:   ip,
 		Port: 8333,
 	})
-
-	go func() {
-		for true {
-			n := <-s.Transactions
-
-			logrus.Infof("btc tx notify: %v", n)
-		}
-	}()
-
+	go s.Spin()
 	d.Spin()
+	s.Halt()
 }

@@ -162,24 +162,6 @@ func (addr Addr) String() string {
 	})
 }
 
-type BlockLocator struct {
-	Version            uint32     // the protocol version
-	HashCount          VarInt     // number of block locator hash entries
-	BlockLocatorHashes [][32]byte `size:"HashCount"` // block locator object; newest back to genesis block (dense to start, but then sparse)
-	HashStop           [32]byte   // hash of the last desired block; set to zero to get as many blocks as possible (500)
-}
-
-// String implements fmt.Stringer
-func (l BlockLocator) String() string {
-	return fmt.Sprintf("{Version: %d, BlockLocatorHashes: %s, HashStop: %s}",
-		l.Version,
-		FmtSlice(l.BlockLocatorHashes, func(t [32]byte) string {
-			return hex.EncodeToString(t[:])
-		}),
-		hex.EncodeToString(l.HashStop[:]),
-	)
-}
-
 type OutPoint struct {
 	Hash  [32]byte // The hash of the referenced transaction.
 	Index uint32   // The index of the specific output in the transaction. The first output is 0, etc.
@@ -438,6 +420,37 @@ func (b MerkleBlock) String() string {
 			return fmt.Sprint(t)
 		}),
 	)
+}
+
+// FeeFilter serves to instruct peers not to send "inv"'s to the node for transactions with fees below the specified fee rate.
+type FeeFilter int64
+
+type GetHeaders struct {
+	Version            uint32     // the protocol version
+	HashCount          VarInt     // number of block locator hash entries
+	BlockLocatorHashes [][32]byte `size:"HashCount"` // block locator object; newest back to genesis block (dense to start, but then sparse)
+	HashStop           [32]byte   // hash of the last desired block; set to zero to get as many blocks as possible (500)
+}
+
+// String implements fmt.Stringer
+func (gh GetHeaders) String() string {
+	return fmt.Sprintf("{Version: %d, BlockLocatorHashes: %s, HashStop: %s}",
+		gh.Version,
+		FmtSlice(gh.BlockLocatorHashes, func(t [32]byte) string {
+			return hex.EncodeToString(t[:])
+		}),
+		hex.EncodeToString(gh.HashStop[:]),
+	)
+}
+
+type SendCmpct struct {
+	// If announce is set to false the receive node must announce new blocks
+	// via the standard inv relay. If announce is true, a new Compact Block
+	// can be pushed directly to the peer.
+	Announce bool
+
+	// The version of this protocol is currently 1.
+	Version uint64
 }
 
 type HeaderAndShortIDs struct {

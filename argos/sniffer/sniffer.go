@@ -14,8 +14,8 @@ type Sniffer struct {
 	constructors  map[string]DaemonConstructor
 	seedProviders map[string]SeedProvider
 	logger        *logrus.Logger
-	// Transactions are used for daemons to report transaction notifies
-	Transactions chan TransactionNotify
+	transactions  chan TransactionNotify
+	running       bool
 }
 
 func (c *Sniffer) RegisterDaemonConstructor(name string, constructor DaemonConstructor) {
@@ -45,10 +45,37 @@ func NewSniffer() *Sniffer {
 		constructors:  make(map[string]DaemonConstructor),
 		seedProviders: make(map[string]SeedProvider),
 		logger:        logrus.New(),
-		Transactions:  make(chan TransactionNotify, 32),
+		transactions:  make(chan TransactionNotify),
+		running:       false,
 	}
 }
 
 func (s *Sniffer) Logger() *logrus.Logger {
 	return s.logger
+}
+
+func (s *Sniffer) NotifyTransaction(notify TransactionNotify) {
+	s.transactions <- notify
+}
+
+func (s *Sniffer) NodeConn(src net.TCPAddr, conn []net.TCPAddr) {
+
+}
+
+func (s *Sniffer) NodeExit(node net.Addr) {
+
+}
+
+func (s *Sniffer) Spin() {
+	// only print tx into log currently
+	s.running = true
+	for s.running {
+		if tx, ok := <-s.transactions; ok {
+			s.Logger().WithField("tx", tx).Info("sniffer received tx")
+		}
+	}
+}
+
+func (s *Sniffer) Halt() {
+	s.running = false
 }
