@@ -27,3 +27,14 @@ go.work
 # logs
 *.log
 logs/
+
+# kitex middleware
+master/kitex_gen/
+master/output/
+master/script/
+master/build.sh
+
+sniffer/kitex_gen/
+sniffer/output/
+sniffer/script/
+sniffer/build.sh

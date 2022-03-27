@@ -7,14 +7,14 @@ import (
 	"net"
 	"time"
 
+	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/argos/serialization"
-	"github.com/AlaricGilbert/argos-core/argos/sniffer"
 	"github.com/cloudwego/netpoll"
 	"github.com/sirupsen/logrus"
 )
 
 type Peer struct {
-	s           *sniffer.Sniffer
+	s           argos.Sniffer
 	addr        *netpoll.TCPAddr
 	localAddr   *netpoll.TCPAddr
 	conn        *netpoll.TCPConnection
@@ -256,7 +256,7 @@ func (d *Peer) header(ctx *Ctx) {
 		}
 		return
 	}
-	ctx.err = sniffer.PeerNotRunningError
+	ctx.err = argos.PeerNotRunningError
 }
 
 func (d *Peer) handle() error {
@@ -348,14 +348,14 @@ func (d *Peer) Spin() error {
 func (d *Peer) Halt() error {
 	d.logger().Info("bitcoin peer spin halting")
 	if d.conn == nil || !d.conn.IsActive() {
-		return sniffer.PeerNotRunningError
+		return argos.PeerNotRunningError
 	}
 	return d.conn.Close()
 }
 
-func NewPeer(ctx *sniffer.Sniffer, addr *net.TCPAddr) sniffer.Peer {
+func NewPeer(sniffer argos.Sniffer, addr *net.TCPAddr) argos.Peer {
 	return &Peer{
-		s: ctx,
+		s: sniffer,
 		addr: &netpoll.TCPAddr{
 			TCPAddr: *addr,
 		},

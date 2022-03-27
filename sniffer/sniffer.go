@@ -1,51 +1,48 @@
-package sniffer
+package main
 
 import (
 	"net"
 
+	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/sirupsen/logrus"
 )
 
-type PeerConstructor func(ctx *Sniffer, addr *net.TCPAddr) Peer
-type SeedProvider func() ([]net.IP, error)
-
-// Sniffer repesents an abstract super node that could connect to multiple nodes simultaneously
 type Sniffer struct {
-	constructors  map[string]PeerConstructor
-	seedProviders map[string]SeedProvider
+	constructors  map[string]argos.PeerConstructor
+	seedProviders map[string]argos.SeedProvider
 	logger        *logrus.Logger
-	transactions  chan TransactionNotify
+	transactions  chan argos.TransactionNotify
 	running       bool
 }
 
-func (c *Sniffer) RegisterPeerConstructor(name string, constructor PeerConstructor) {
+func (c *Sniffer) RegisterPeerConstructor(name string, constructor argos.PeerConstructor) {
 	c.constructors[name] = constructor
 }
 
-func (c *Sniffer) RegisterSeedProvider(name string, provider SeedProvider) {
+func (c *Sniffer) RegisterSeedProvider(name string, provider argos.SeedProvider) {
 	c.seedProviders[name] = provider
 }
 
-func (c *Sniffer) NewPeer(protocol string, addr *net.TCPAddr) (Peer, error) {
+func (c *Sniffer) NewPeer(protocol string, addr *net.TCPAddr) (argos.Peer, error) {
 	if ctor, ok := c.constructors[protocol]; ok {
 		return ctor(c, addr), nil
 	}
-	return nil, ProtocolNotImplementedError
+	return nil, argos.ProtocolNotImplementedError
 }
 
 func (c *Sniffer) GetSeedNodes(protocol string) ([]net.IP, error) {
 	if provider, ok := c.seedProviders[protocol]; ok {
 		return provider()
 	}
-	return nil, ProtocolNotImplementedError
+	return nil, argos.ProtocolNotImplementedError
 }
 
 func NewSniffer() *Sniffer {
 	return &Sniffer{
-		constructors:  make(map[string]PeerConstructor),
-		seedProviders: make(map[string]SeedProvider),
+		constructors:  make(map[string]argos.PeerConstructor),
+		seedProviders: make(map[string]argos.SeedProvider),
 		logger:        logrus.New(),
-		transactions:  make(chan TransactionNotify),
+		transactions:  make(chan argos.TransactionNotify),
 		running:       false,
 	}
 }
@@ -54,7 +51,7 @@ func (s *Sniffer) Logger() *logrus.Logger {
 	return s.logger
 }
 
-func (s *Sniffer) NotifyTransaction(notify TransactionNotify) {
+func (s *Sniffer) NotifyTransaction(notify argos.TransactionNotify) {
 	s.transactions <- notify
 }
 

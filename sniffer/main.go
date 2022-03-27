@@ -2,18 +2,20 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"time"
 
-	"github.com/AlaricGilbert/argos-core/argos/sniffer"
+	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/protocol/bitcoin"
+	api "github.com/AlaricGilbert/argos-core/sniffer/kitex_gen/api/argossniffer"
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 )
 
-// currently works as a bitcoin peer
 func main() {
-	s := sniffer.NewSniffer()
+	s := NewSniffer()
 	if bitcoin.Init(s) != nil {
 		panic("bitcoin init failed")
 	}
@@ -37,6 +39,18 @@ func main() {
 		Port: 8333,
 	})
 	go s.Spin()
-	d.Spin()
-	s.Halt()
+	go func() {
+		d.Spin()
+		s.Halt()
+	}()
+
+	klog.SetLogger(argos.New(s.logger))
+
+	svr := api.NewServer(new(ArgosSnifferImpl))
+
+	err = svr.Run()
+
+	if err != nil {
+		log.Println(err.Error())
+	}
 }

@@ -5,8 +5,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/AlaricGilbert/argos-core/argos"
 	"github.com/AlaricGilbert/argos-core/argos/serialization"
-	"github.com/AlaricGilbert/argos-core/argos/sniffer"
 	"github.com/cloudwego/netpoll"
 )
 
@@ -74,7 +74,7 @@ func handleInv(ctx *Ctx) {
 		for _, ii := range inv.Inventory {
 			// we only support transactions here
 			if ii.Type.Tx() {
-				ctx.peer.s.NotifyTransaction(sniffer.TransactionNotify{
+				ctx.peer.s.NotifyTransaction(argos.TransactionNotify{
 					SourceIP:  ctx.peer.addr.IP,
 					Timestamp: revTime,
 					TxID:      ii.Hash[:],
