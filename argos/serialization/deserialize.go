@@ -28,9 +28,9 @@ func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (
 	// error
 	var err error
 	// count of total bytes have been read
-	var bytes = 0
+	var bytes int
 	// tmp count of bytes have been read
-	var n = 0
+	var n int
 
 	// Fast path for basic types and slices.
 	if bytes = intDataSize(data); bytes != 0 {
@@ -112,7 +112,7 @@ func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (
 
 	// fall into customized type deserialize
 	for _, s := range serializers {
-		if n, err = s.Deserialize(r, data, order); err != SerializeTypeDismatchError {
+		if n, err = s.Deserialize(r, data, order); err != ErrSerializeTypeDismatch {
 			return bytes + n, err
 		}
 		bytes += n
@@ -159,7 +159,7 @@ func DeserializeWithEndian(r netpoll.Reader, data any, order binary.ByteOrder) (
 
 			if Omit(fieldTyp) {
 				if i != l-1 {
-					return bytes, NonLastFieldContainsOmitOptionError
+					return bytes, ErrNonLastFieldContainsOmitOption
 				}
 				if r.Len() == 0 {
 					return bytes, nil

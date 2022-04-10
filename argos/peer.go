@@ -7,13 +7,13 @@ import (
 
 // TransactionNotify represents an abstract transaction which has been
 type TransactionNotify struct {
-	// SourceIP is the source where the current node get notified
-	SourceIP net.IP
+	// Source is the source where the current node get notified
+	Source net.TCPAddr
 	// Timestamp is the time when the current node get notified
 	Timestamp time.Time
 	// TxID is the re-hashed abstract representation of an abstract transaction, which can be computed by real
 	// implementation-related cryptocurrency transaction ids
-	TxID []byte
+	TxID [32]byte
 }
 
 // Peer is an interface that describes the behaviour of an abstract cryptocurrency peer in argos system

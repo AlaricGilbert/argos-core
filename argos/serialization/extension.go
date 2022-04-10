@@ -19,7 +19,7 @@ var serializers map[string]Serializer = make(map[string]Serializer)
 // reflect based serialize and deserialize.
 func RegisterSerializer(id string, s Serializer) error {
 	if _, ok := serializers[id]; ok {
-		return SerializerAlreadyExistsError
+		return ErrSerializerAlreadyExists
 	}
 	serializers[id] = s
 	return nil

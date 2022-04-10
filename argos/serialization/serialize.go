@@ -29,9 +29,9 @@ func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (in
 	// error
 	var err error
 	// count of total bytes have been read
-	var bytes = 0
+	var bytes int
 	// tmp count of bytes have been read
-	var n = 0
+	var n int
 
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
@@ -141,7 +141,7 @@ func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (in
 
 	// fall into customized type deserialize
 	for _, s := range serializers {
-		if n, err = s.Serialize(w, data, order); err != SerializeTypeDismatchError {
+		if n, err = s.Serialize(w, data, order); err != ErrSerializeTypeDismatch {
 			return bytes + n, err
 		}
 		bytes += n
@@ -183,7 +183,7 @@ func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (in
 					size := sizeF.Int()
 					if size != int64(field.Len()) {
 						if !sizeF.CanSet() {
-							return bytes, UsingUnaddressableValueError
+							return bytes, ErrUsingUnaddressableValue
 						}
 						sizeF.SetInt(int64(len))
 					}
@@ -191,12 +191,12 @@ func SerializeWithEndian(w netpoll.Writer, data any, order binary.ByteOrder) (in
 					size := sizeF.Uint()
 					if size != uint64(field.Len()) {
 						if !sizeF.CanSet() {
-							return bytes, UsingUnaddressableValueError
+							return bytes, ErrUsingUnaddressableValue
 						}
 						sizeF.SetUint(uint64(len))
 					}
 				} else {
-					return bytes, SliceFiledSizeTagNotFoundError
+					return bytes, ErrSliceFiledSizeTagNotFound
 				}
 			}
 		}

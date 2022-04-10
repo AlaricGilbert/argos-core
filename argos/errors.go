@@ -3,14 +3,14 @@ package argos
 import "errors"
 
 var (
-	// ProtocolNotImplementedError
-	ProtocolNotImplementedError = errors.New("protocol not implemented")
-	// ConnectFailedError means the trail of connecting into the server failed
-	ConnectFailedError = errors.New("connect failed")
-	// DisconnectedError means the remote server has been disconnected
-	DisconnectedError = errors.New("remote socket disconnected")
-	// PeerHaltedError means the peer has been halted
-	PeerHaltedError = errors.New("peer spinning halted")
-	// PeerNotRunningError means the peer not running
-	PeerNotRunningError = errors.New("peer not running")
+	// ErrProtocolNotImplemented
+	ErrProtocolNotImplemented = errors.New("protocol not implemented")
+	// ErrConnectFailed means the trail of connecting into the server failed
+	ErrConnectFailed = errors.New("connect failed")
+	// ErrDisconnected means the remote server has been disconnected
+	ErrDisconnected = errors.New("remote socket disconnected")
+	// ErrPeerHalted means the peer has been halted
+	ErrPeerHalted = errors.New("peer spinning halted")
+	// ErrPeerNotRunning means the peer not running
+	ErrPeerNotRunning = errors.New("peer not running")
 )

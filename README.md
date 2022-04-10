@@ -1,12 +1,41 @@
 # argos-core
 The core sniff & master node implementation of a cryptocurrency public chian monitor system called `argos`.
 
-## Get Started
+It should be noticed that due to the support situation of `netpoll`, code nodes cannot run on Windows systems.
+## Getting Started
 
 ### Insturctions to deploy Master Node and frontend 
 > //TODO
 ### Insturctions to deploy Sniffer Node 
 > //TODO
+### Instructions to build & develop the project
+#### Install kitex compiler
+* Ensure `GOPATH` environment variable is defined properly (for example `export GOPATH=~/go`), then add `$GOPATH/bin` to `PATH` environment variable (for example export `PATH=$GOPATH/bin:$PATH`). Make sure `GOPATH` is accessible.
+* Install kitex: 
+```sh
+go install github.com/cloudwego/kitex/tool/cmd/kitex@latest
+```
+* Install thriftgo: 
+```sh
+go install github.com/cloudwego/thriftgo@latest
+```
+#### Generate RPC codes
+Generated codes are not included in the repository, you should run the `kitexgen.sh` in the repository folder to generate RPC codes.
+```sh
+$ pwd
+your-code-folder/argos-core
+$ sh kitexgen.sh
+```
+#### Build master and sniffer
+```sh
+$ cd sniffer
+$ bash build.sh
+$ ...
+$ cd ../master
+$ bash build.sh
+```
+
+Also you can just run `build.sh` in top folder, it would update all kitex generated codes and build both `master` and `sniffer`
 ## Project Structure
 > //TODO
 ## Contribution

@@ -38,3 +38,8 @@ sniffer/kitex_gen/
 sniffer/output/
 sniffer/script/
 sniffer/build.sh
+
+# configurations
+
+sniffer.json
+master.json

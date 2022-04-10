@@ -358,8 +358,8 @@ func (r Reject) String() string {
 
 // FilterLoad
 type FilterLoad struct {
-	count      VarInt
-	Filter     []byte `size:"count"` // The filter itself is simply a bit field of arbitrary byte-aligned size. The maximum size is 36,000 bytes
+	Count      VarInt
+	Filter     []byte `size:"Count"` // The filter itself is simply a bit field of arbitrary byte-aligned size. The maximum size is 36,000 bytes
 	NHashFuncs uint32 // The number of hash functions to use in this filter. The maximum value allowed in this field is 50.
 	NTweak     uint32 // A random value to add to the seed value in the hash function used by the bloom filter.
 	NFlags     uint8  // A set of flags that control how matched items are added to the filter.
@@ -377,8 +377,8 @@ func (f FilterLoad) String() string {
 
 // FilterAdd
 type FilterAdd struct {
-	count VarInt
-	Data  []byte `size:"count"` // The data element to add to the current filter.
+	Count VarInt
+	Data  []byte `size:"Count"` // The data element to add to the current filter.
 }
 
 // String implements fmt.Stringer
@@ -456,6 +456,6 @@ type SendCmpct struct {
 type HeaderAndShortIDs struct {
 	Header       BlockHeader
 	Nonce        uint64
-	shortIDCount VarInt
-	ShortIDs     [][6]byte
+	ShortIDCount VarInt
+	ShortIDs     [][6]byte `size:"ShortIDCount"`
 }

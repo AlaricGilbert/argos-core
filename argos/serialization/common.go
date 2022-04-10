@@ -35,11 +35,11 @@ func findSizeForSlice(f reflect.StructField, v reflect.Value) (reflect.Value, er
 		sizeF := v.FieldByName(sizeVarName)
 		panic := recover()
 		if panic != nil {
-			return v, SliceFiledSizeTagNotFoundError
+			return v, ErrSliceFiledSizeTagNotFound
 		}
 		return sizeF, nil
 	}
-	return v, SliceFiledSizeTagNotFoundError
+	return v, ErrSliceFiledSizeTagNotFound
 }
 
 // intDataSize returns the size of the data required to represent the data when encoded.

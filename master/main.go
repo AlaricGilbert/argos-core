@@ -1,12 +1,12 @@
 package main
 
 import (
-	api "github.com/AlaricGilbert/argos-core/master/kitex_gen/api/argosmaster"
+	master "github.com/AlaricGilbert/argos-core/master/kitex_gen/master/argosmaster"
 	"log"
 )
 
 func main() {
-	svr := api.NewServer(new(ArgosMasterImpl))
+	svr := master.NewServer(new(ArgosMasterImpl))
 
 	err := svr.Run()
 

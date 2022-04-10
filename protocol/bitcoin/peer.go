@@ -163,7 +163,9 @@ func (d *Peer) writer() netpoll.Writer {
 }
 
 func (d *Peer) header(ctx *Ctx) {
-	defer d.reader().Release()
+	defer func() {
+		_ = d.reader().Release()
+	}()
 
 	if d.mock || d.conn.IsActive() {
 		// an easy handwritten state machine to detect magic code
@@ -256,7 +258,7 @@ func (d *Peer) header(ctx *Ctx) {
 		}
 		return
 	}
-	ctx.err = argos.PeerNotRunningError
+	ctx.err = argos.ErrPeerNotRunning
 }
 
 func (d *Peer) handle() error {
@@ -266,7 +268,7 @@ func (d *Peer) handle() error {
 		peer: d,
 	}
 	defer func() {
-		d.reader().Release()
+		_ = d.reader().Release()
 		d.writer().Flush()
 		if ctx.payload != nil {
 			ctx.payload.Close()
@@ -297,7 +299,7 @@ func (d *Peer) handle() error {
 	}
 
 	ctx.payload = netpoll.NewLinkBuffer()
-	ctx.payload.WriteBinary(data)
+	_, _ = ctx.payload.WriteBinary(data)
 	ctx.payload.Flush()
 
 	if handler, ok := commandHandlers[ctx.command]; ok {
@@ -348,7 +350,7 @@ func (d *Peer) Spin() error {
 func (d *Peer) Halt() error {
 	d.logger().Info("bitcoin peer spin halting")
 	if d.conn == nil || !d.conn.IsActive() {
-		return argos.PeerNotRunningError
+		return argos.ErrPeerNotRunning
 	}
 	return d.conn.Close()
 }

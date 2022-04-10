@@ -19,6 +19,13 @@ func (nm NetworkMagic) String() string {
 	return "INVALID"
 }
 
+func MagicFromName(name string) NetworkMagic {
+	if magic, ok := magics[name]; ok {
+		return magic
+	}
+	return 0
+}
+
 // VarInt is an integer stores as an uint64 but serializes & deserializes using variable length.
 type VarInt uint64
 

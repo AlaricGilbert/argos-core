@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/AlaricGilbert/argos-core/argos"
 )
 
 // The DNS host from https://github.com/bitcoin/bitcoin core repository
@@ -34,7 +34,7 @@ func LookupBTCNetwork() ([]net.IP, error) {
 	for _, host := range btcSeedHosts {
 		ips, err := net.LookupIP(host)
 		if err != nil {
-			logrus.Errorf("[LookupBTCNetwork] Get BTC DNS seed from host `%s` failed: %v", host, err)
+			argos.StandardLogger().Errorf("[LookupBTCNetwork] Get BTC DNS seed from host `%s` failed: %v", host, err)
 			return nil, errors.New(fmt.Sprintf("Get BTC DNS seed from host `%s` failed: %v", host, err))
 		}
 		result = append(result, ips...)

@@ -17,9 +17,9 @@ func (ser *BitcoinSerializer) Deserialize(r netpoll.Reader, data any, order bina
 	// error
 	var err error
 	// count of total bytes have been read
-	var bytes = 0
+	var bytes int
 	// tmp count of bytes have been read
-	var n = 0
+	var n int
 
 	// handle basic types defined in types.go for bitcoin protocol
 	switch data := data.(type) {
@@ -141,16 +141,16 @@ func (ser *BitcoinSerializer) Deserialize(r netpoll.Reader, data any, order bina
 		n, err = serialization.Deserialize(r, &data.LockTime)
 		return bytes + n, err
 	}
-	return bytes, serialization.SerializeTypeDismatchError
+	return bytes, serialization.ErrSerializeTypeDismatch
 }
 
 // serialize provides extension of bitcoin protocol type for serialization.Serialize
 func (ser *BitcoinSerializer) Serialize(w netpoll.Writer, data any, order binary.ByteOrder) (int, error) {
 	var err error
 	// count of total bytes have been read
-	var bytes = 0
+	var bytes int
 	// tmp count of bytes have been read
-	var n = 0
+	var n int
 
 	// handle basic types defined in types.go for bitcoin protocol
 	switch data := data.(type) {
@@ -236,5 +236,5 @@ func (ser *BitcoinSerializer) Serialize(w netpoll.Writer, data any, order binary
 		n, err = serialization.Serialize(w, data.LockTime)
 		return bytes + n, err
 	}
-	return bytes, serialization.SerializeTypeDismatchError
+	return bytes, serialization.ErrSerializeTypeDismatch
 }

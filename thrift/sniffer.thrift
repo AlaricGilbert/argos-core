@@ -1,4 +1,5 @@
-namespace go api
+include "base.thrift"
+namespace go sniffer
 
 struct TimeRequest {
 	1: i64 timestamp
@@ -10,18 +11,13 @@ struct TimeResponse {
     3: i64 respTimestamp
 }
 
-struct TransactionRequest {
-    1: i64 timestamp
-    2: list<i8> transaction
+struct TransactionNotify {
+    1: string identifier
+    2: base.Transaction transaction
 }
 
 struct TransactionResponse {
     1: optional i64 timestamp
-}
-
-struct Address {
-    1: list<i8> ip
-    2: i32 port
 }
 
 struct AddressRequest {
@@ -29,11 +25,11 @@ struct AddressRequest {
 }
 
 struct AddressResponse {
-    1: list<Address> address
+    1: list<base.TcpAddress> addresses
 }
 
 service ArgosSniffer {
     TimeResponse time(1: TimeRequest req)
-    TransactionResponse transaction(1: TimeRequest req) 
+    void transactionNotify(1: TransactionNotify req) 
     AddressResponse address(1: AddressRequest req)
 }
