@@ -13,9 +13,10 @@ func initOnce() {
 	_ = serialization.RegisterSerializer("bitcoin", &BitcoinSerializer{})
 }
 
-func Init(s argos.Sniffer) error {
+func Init() error {
 	once.Do(initOnce)
 	argos.RegisterPeerConstructor("bitcoin", NewPeer)
 	argos.RegisterSeedProvider("bitcoin", LookupBTCNetwork)
+	argos.RegisterRandomRemoteAddressProvider("bitcoin", LookupRandomBTCHostAddress)
 	return nil
 }

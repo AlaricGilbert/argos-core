@@ -13,6 +13,6 @@ type Sniffer interface {
 	Connect(address net.TCPAddr)
 	NodeConn(src net.TCPAddr, conn []net.TCPAddr)
 	NodeExit(address net.TCPAddr)
-	Spin()
+	Spin(node net.TCPAddr)
 	Halt()
 }

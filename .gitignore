@@ -43,3 +43,4 @@ sniffer/build.sh
 
 sniffer.json
 master.json
+master/config/config.go

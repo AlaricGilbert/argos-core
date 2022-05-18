@@ -30,17 +30,6 @@ func (g *Graph[Key, Value]) AddVertex(key Key, value Value) {
 	}
 }
 
-// AddVertex adds a vertex to the graph.
-func (g *Graph[Key, Value]) AddVertexWithFactory(key Key, factory func() Value) {
-	if _, ok := g.vertices[key]; !ok {
-		g.vertices[key] = &Vertex[Key, Value]{
-			key:       key,
-			value:     factory(),
-			neighbors: make(map[Key]struct{}, 0),
-		}
-	}
-}
-
 func (g *Graph[Key, Value]) getTwoVertices(k1, k2 Key) (v1, v2 *Vertex[Key, Value], ok bool) {
 	if v1, ok = g.vertices[k1]; !ok {
 		return
@@ -86,6 +75,32 @@ func (g *Graph[Key, Value]) GetVertex(key Key) *Vertex[Key, Value] {
 		return v
 	}
 	return nil
+}
+
+// ContainsVertex returns true if the graph contains a vertex with the given key.
+func (g *Graph[Key, Value]) ContainsVertex(key Key) bool {
+	_, ok := g.vertices[key]
+	return ok
+}
+
+// DFS performs a depth-first search on the graph.
+func (g *Graph[Key, Value]) DFS(startKey Key, visit func(key Key, value Value) bool) {
+	if startVertex, ok := g.vertices[startKey]; ok {
+		visited := make(map[Key]struct{}, 0)
+		var dfs func(key Key, value Value)
+		dfs = func(key Key, value Value) {
+			if _, ok := visited[key]; !ok {
+				visited[key] = struct{}{}
+				if !visit(key, value) {
+					return
+				}
+				for neighborKey := range startVertex.neighbors {
+					dfs(neighborKey, g.vertices[neighborKey].value)
+				}
+			}
+		}
+		dfs(startKey, startVertex.value)
+	}
 }
 
 // GetVertices returns all vertices from the graph.

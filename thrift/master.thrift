@@ -1,25 +1,29 @@
 include "base.thrift"
 namespace go master
 
-struct PingRequest {
-	1: string identifier
-    2: list<string> protocols
+struct TimeSync {
+	1: i64 sendTimestamp
+    2: i64 recvTimestamp
+    3: i64 respTimestamp
 }
 
-struct NodeTask {
-    1: string protocol
-    2: list<base.TcpAddress> nodes
-    3: optional base.TcpAddress main
+struct PingRequest {
+	1: string identifier
+    2: i64 timestamp
+    3: optional i64 deltaTime
 }
 
 struct PingResponse {
     1: base.ResponseStatus status
-    2: NodeTask task
+    2: string   protocol
+    3: TimeSync timeSync
 }
 
 struct ReportRequest {
     1: string identifier
-    2: base.Transaction transaction
+    2: string method
+    3: string protocol
+    4: base.Transaction transaction
 }
 
 struct ReportResponse {

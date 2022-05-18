@@ -29,8 +29,9 @@ var btcSeedHosts = []string{
 var seedRng = rand.New((rand.NewSource(time.Now().Unix())))
 
 // LookupBTCNetwork queries all the possible connected DNS servers and returns the core BTC network seed.
-func LookupBTCNetwork() ([]net.IP, error) {
+func LookupBTCNetwork() ([]net.TCPAddr, error) {
 	var result = make([]net.IP, 0)
+	var nodes = make([]net.TCPAddr, 0)
 	for _, host := range btcSeedHosts {
 		ips, err := net.LookupIP(host)
 		if err != nil {
@@ -39,7 +40,10 @@ func LookupBTCNetwork() ([]net.IP, error) {
 		}
 		result = append(result, ips...)
 	}
-	return result, nil
+	for _, ip := range result {
+		nodes = append(nodes, net.TCPAddr{IP: ip, Port: 8333})
+	}
+	return nodes, nil
 }
 
 func LookupRandomBTCNetwork() (net.IP, error) {
@@ -47,5 +51,13 @@ func LookupRandomBTCNetwork() (net.IP, error) {
 		return nil, err
 	} else {
 		return ips[seedRng.Intn(len(ips))], nil
+	}
+}
+
+func LookupRandomBTCHostAddress() (*net.TCPAddr, error) {
+	if ip, err := LookupRandomBTCNetwork(); err != nil {
+		return nil, err
+	} else {
+		return &net.TCPAddr{IP: ip, Port: 8333}, nil
 	}
 }

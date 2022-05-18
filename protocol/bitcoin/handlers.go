@@ -70,23 +70,15 @@ func handleVersion(ctx *Ctx) {
 func handleInv(ctx *Ctx) {
 	if inv := deserializePayload[Inv](ctx); ctx.err == nil {
 		revTime := time.Now()
-		reqInvs := make([]Inventory, 0)
 		for _, ii := range inv.Inventory {
 			// we only support transactions here
 			if ii.Type.Tx() {
 				ctx.peer.s.NotifyTransaction(argos.TransactionNotify{
-					SourceIP:  ctx.peer.addr.IP,
+					Source:    ctx.peer.addr.TCPAddr,
 					Timestamp: revTime,
-					TxID:      ii.Hash[:],
+					TxID:      ii.Hash,
 				})
-				if _, ok := ctx.peer.txs[ii.Hash]; !ok {
-					reqInvs = append(reqInvs, ii)
-				}
 			}
-		}
-		ctx.peer.logger().WithField("requiringInventories", reqInvs).Info("bitcoin peer received tx inventory")
-		if len(reqInvs) != 0 {
-			ctx.err = ctx.peer.sendGetData(reqInvs...)
 		}
 	}
 }
@@ -115,7 +107,7 @@ func handlePing(ctx *Ctx) {
 
 func handleAddr(ctx *Ctx) {
 	if addr := deserializePayload[Addr](ctx); ctx.err == nil {
-		var addrlist []net.TCPAddr = make([]net.TCPAddr, addr.Count)
+		var addrlist []net.TCPAddr
 		for _, address := range addr.AddrList {
 			addrlist = append(addrlist, *address.TCPAddr())
 		}

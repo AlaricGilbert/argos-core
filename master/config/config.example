@@ -1,0 +1,6 @@
+package config
+
+const (
+	DbConnDsn     = "user:passwd@tcp(ip:port)/argos?charset=utf8mb4&parseTime=True&loc=Local"
+	WebListenAddr = ":8080"
+)
