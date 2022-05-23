@@ -17,29 +17,6 @@ type addr struct {
 	Port int16
 }
 
-type node struct {
-	notified map[[32]byte]time.Time
-	mu       sync.Mutex
-}
-
-func newNode() *node {
-	return &node{
-		notified: make(map[[32]byte]time.Time),
-		mu:       sync.Mutex{},
-	}
-}
-
-func (n *node) notify(tx [32]byte, t time.Time) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if tt, ok := n.notified[tx]; ok {
-		if t.After(tt) {
-			return
-		}
-	}
-	n.notified[tx] = t
-}
-
 func newAddr(address net.TCPAddr) addr {
 	var ip [16]byte
 	copy(ip[:], address.IP)
@@ -231,11 +208,8 @@ func (s *Sniffer) Spin(node net.TCPAddr) {
 }
 
 func (s *Sniffer) hostConnection() {
-	for {
-		select {
-		case address := <-s.newAddrs:
-			s.Connect(address)
-		}
+	for address := range s.newAddrs {
+		s.Connect(address)
 	}
 }
 
