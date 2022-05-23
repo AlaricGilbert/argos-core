@@ -2,11 +2,14 @@ cp -n master/config/config.example master/config/config.go
 
 sh kitexgen.sh
 
+mkdir -p output
+
+
 mkdir -p sniffer/output
 cd sniffer
-go build -o output/bin/argos.sniffer
+go build -o ../output/argos.sniffer
 
 cd ../master
-sh build.sh
+go build -o ../output/argos.master
 
 cd ..

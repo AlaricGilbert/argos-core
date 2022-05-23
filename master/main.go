@@ -11,6 +11,7 @@ import (
 	"github.com/AlaricGilbert/argos-core/master/dal"
 	"github.com/AlaricGilbert/argos-core/master/handlers"
 	master "github.com/AlaricGilbert/argos-core/master/kitex_gen/master/argosmaster"
+	"github.com/AlaricGilbert/argos-core/master/metrics"
 	"github.com/cloudwego/kitex/server"
 	"github.com/gin-gonic/gin"
 	"github.com/rifflock/lfshook"
@@ -29,6 +30,7 @@ func main() {
 
 	argos.SetLogger(logger)
 
+	go metrics.ReportMetrics.Host()
 	dal.InitDatabase()
 	go startGinServer()
 
@@ -50,7 +52,8 @@ func startGinServer() {
 	task.GET("/list", handlers.GetTasks)
 	task.POST("/write", handlers.WriteTask)
 
-	r.GET("status", handlers.GetStatus)
+	status := r.Group("status")
+	status.GET("/report", handlers.GetReportStatus)
 
 	query := r.Group("query")
 	query.GET("/time", handlers.QueryByTime)

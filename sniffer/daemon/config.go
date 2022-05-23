@@ -12,7 +12,6 @@ import (
 
 type Config struct {
 	MasterAddress string `json:"master_address"`
-	LocalPort     int    `json:"local_port"`
 	Identifier    string `json:"identifier"`
 }
 
@@ -36,7 +35,6 @@ func randIdentifier() string {
 func newDefaultConfig() *Config {
 	return &Config{
 		MasterAddress: "127.0.0.1:4222",
-		LocalPort:     8777,
 		Identifier:    randIdentifier(),
 	}
 }

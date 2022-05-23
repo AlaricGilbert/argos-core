@@ -39,6 +39,9 @@ sniffer/output/
 sniffer/script/
 sniffer/build.sh
 
+# binary
+output/
+
 # configurations
 
 sniffer.json

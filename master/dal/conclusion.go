@@ -12,6 +12,7 @@ type ConclusionQuery struct {
 	Limits   int   // largest query result number
 	TimeFrom int64
 	TimeTo   int64
+	Protocol string
 	Method   string
 }
 
@@ -33,12 +34,22 @@ func CreateOrUpdateConclustion(r *model.Record) error {
 	})
 }
 
+func GetSingleConclusion(txid, method string) (*model.Record, error) {
+	var record model.Record
+	return &record, db.Table("conclusions").Where("txid = ? AND method = ?", txid, method).First(&record).Error
+}
+
 func GetConclusions(q ConclusionQuery) ([]model.Record, error) {
 	var records []model.Record
 	query := db.Debug().Table("conclusions").Where("method = ?", q.Method)
 
+	if q.Protocol != "" {
+		query = query.Where("protocol = ?", q.Protocol)
+	}
+
 	if q.Offset != 0 {
-		query = query.Where("id > ?", q.Offset)
+		// since conclusion is ordered by timestamp desc(newer records gets bigger id), so we need to get the conclusion with id < offset
+		query = query.Where("id < ?", q.Offset)
 	}
 
 	if q.TimeFrom != 0 && q.TimeTo != 0 {
@@ -49,5 +60,5 @@ func GetConclusions(q ConclusionQuery) ([]model.Record, error) {
 		q.Limits = 20
 	}
 
-	return records, query.Group("source_ip").Order("timestamp desc").Limit(q.Limits).Find(&records).Error
+	return records, query.Order("timestamp desc").Limit(q.Limits).Find(&records).Error
 }

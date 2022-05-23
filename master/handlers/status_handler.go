@@ -1,10 +1,13 @@
 package handlers
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/AlaricGilbert/argos-core/master/metrics"
+	"github.com/gin-gonic/gin"
+)
 
-func GetStatus(c *gin.Context) {
-	// TODO: add status monitoring
+func GetReportStatus(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"message": "pong",
+		"code": 200,
+		"data": metrics.ReportMetrics.GetMetrics(),
 	})
 }

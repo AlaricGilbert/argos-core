@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/hex"
+	"net"
 	"strconv"
 
 	"github.com/AlaricGilbert/argos-core/master/dal"
@@ -10,7 +12,7 @@ import (
 func QueryByTime(c *gin.Context) {
 	method := c.Query("method")
 
-	offsetStr := c.Query("offset")
+	prev := c.Query("prev")
 	psStr := c.Query("ps")
 
 	fromStr := c.Query("from")
@@ -23,10 +25,14 @@ func QueryByTime(c *gin.Context) {
 		return
 	}
 	query.Method = method
+	query.Protocol = c.Query("protocol")
 
-	if offsetStr != "" {
-		if query.Offset, err = strconv.ParseInt(offsetStr, 10, 64); err != nil {
-			query.Offset = 0
+	if prev != "" {
+		if prevTx, err := dal.GetSingleConclusion(prev, method); err != nil {
+			retErrMsg(c, "prev txid is not valid")
+			return
+		} else {
+			query.Offset = prevTx.ID
 		}
 	}
 
@@ -61,6 +67,13 @@ func QueryByIP(c *gin.Context) {
 		retErrMsg(c, "ip should not be empty")
 		return
 	}
+
+	// try parse ip
+	if net.ParseIP(ip) == nil {
+		retErrMsg(c, "ip is not valid")
+		return
+	}
+
 	if result, err := dal.GetRecordsWithIP(ip); err != nil {
 		retErr(c, err)
 	} else {
@@ -74,7 +87,13 @@ func QueryByTx(c *gin.Context) {
 		retErrMsg(c, "txid should not be empty")
 		return
 	}
-	if result, err := dal.GetRecordsWithIP(txid); err != nil {
+
+	if _, err := hex.DecodeString(txid); err != nil {
+		retErrMsg(c, "txid is not valid")
+		return
+	}
+
+	if result, err := dal.GetRecordsWithTxid(txid); err != nil {
 		retErr(c, err)
 	} else {
 		retData(c, result)

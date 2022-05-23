@@ -4,10 +4,24 @@ The core sniff & master node implementation of a cryptocurrency public chian mon
 It should be noticed that due to the support situation of `netpoll`, code nodes cannot run on Windows systems.
 ## Getting Started
 
-### Insturctions to deploy Master Node and frontend 
-> //TODO
+### Insturctions to deploy Master Node
+* Setting up your Database environment
+* Run `build.sh` or manually copy `master/config/config.example` to `master/config/config.go`
+* Modify your database Data Source Name and your web service listen address (`:8080` default)
+* Build master node and build your master node images.
+* Deploy it by just execute it.
 ### Insturctions to deploy Sniffer Node 
-> //TODO
+* Run `build.sh` or manually build sniffer node.
+* Create a `config.json` like:
+```jsonc
+{
+    "master_address": "127.0.0.1:4222",     // Master IP:4222 (4222 is default RPC port)
+    "identifier": "hubei-SIp7m1Lkc4"        // [Prefix]-[Random Unique ID]
+}
+```
+* Build your sniffer node images (executable + json).
+* Deploy it by just execute it.
+
 ### Instructions to build & develop the project
 #### Install kitex compiler
 * Ensure `GOPATH` environment variable is defined properly (for example `export GOPATH=~/go`), then add `$GOPATH/bin` to `PATH` environment variable (for example export `PATH=$GOPATH/bin:$PATH`). Make sure `GOPATH` is accessible.

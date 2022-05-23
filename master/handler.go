@@ -11,6 +11,7 @@ import (
 	"github.com/AlaricGilbert/argos-core/master/dal"
 	"github.com/AlaricGilbert/argos-core/master/kitex_gen/base"
 	"github.com/AlaricGilbert/argos-core/master/kitex_gen/master"
+	"github.com/AlaricGilbert/argos-core/master/metrics"
 	"github.com/AlaricGilbert/argos-core/master/model"
 )
 
@@ -68,6 +69,8 @@ func (s *ArgosMasterImpl) Ping(ctx context.Context, req *master.PingRequest) (re
 func (s *ArgosMasterImpl) Report(ctx context.Context, req *master.ReportRequest) (resp *master.ReportResponse, err error) {
 	logger := argos.StandardLogger()
 	logger.WithField("report", req).Info("received report")
+
+	metrics.ReportMetrics.Mark(1)
 
 	r := model.Record{
 		Txid:      hex.EncodeToString(req.Transaction.Txid),
