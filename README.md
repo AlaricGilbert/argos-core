@@ -51,7 +51,76 @@ $ bash build.sh
 
 Also you can just run `build.sh` in top folder, it would update all kitex generated codes and build both `master` and `sniffer`
 ## Project Structure
-> //TODO
+```
+.
+├── argos                       // Argos core package
+│   ├── errors.go              // Errors definition
+│   ├── logger.go              // Logger wrapper
+│   ├── peer.go                // Peer interface
+│   ├── registry.go            // Abstract Peer registry
+│   ├── serialization          // Serialization & deserialization package
+│   │   ├── common.go
+│   │   ├── deserialize.go
+│   │   ├── errors.go
+│   │   ├── extension.go
+│   │   └── serialize.go
+│   └── sniffer.go             // Sniffer interface
+├── build.sh                    // Build script
+├── go.mod
+├── go.sum
+├── graph                       // Graph implementation
+│   ├── graph.go
+│   └── graph_test.go
+├── kitexgen.sh                 // Kitex code generate script
+├── LICENSE
+├── master                      // Argos master node package
+│   ├── build.sh                // Build script
+│   ├── config                  // Argos master cofig
+│   │   ├── config.example
+│   │   └── config.go
+│   ├── dal                     // Argos master data access layer
+│   │   ├── conclusion.go
+│   │   ├── db.go
+│   │   ├── record.go
+│   │   └── task.go
+│   ├── handler.go              // Argos master RPC handlers
+│   ├── handlers                // Argos master web handlers
+│   │   ├── common.go
+│   │   ├── query_handler.go
+│   │   ├── status_handler.go
+│   │   └── task_handler.go
+│   ├── main.go                 // Argos master command line program
+│   ├── metrics                 // Metrics implementation
+│   │   └── metrics.go
+│   └── model                   // Argos master database models
+│       ├── record.go
+│       └── task.go
+├── protocol                    // Argos supported protocols
+│   └── bitcoin                 // Bitcoin Peer implementation 
+│       ├── consts.go
+│       ├── handlers.go
+│       ├── init.go
+│       ├── messages.go
+│       ├── peer.go
+│       ├── seed.go
+│       ├── seed_test.go
+│       ├── serializer.go
+│       ├── serializer_test.go
+│       ├── types.go
+│       ├── utils.go
+│       └── utils_test.go
+├── README.md                    // This readme file
+├── sniffer                      // Argos sniffer node package
+│   ├── daemon
+│   │   ├── config.go
+│   │   ├── config_test.go
+│   │   ├── daemon.go
+│   │   └── sniffer.go
+│   └── main.go
+└── thrift                      // Argos master node thrift definition
+    ├── base.thrift
+    └── master.thrift
+```
 ## Contribution
 Pull Requests are welcomed after this repo become public.
 ## License
